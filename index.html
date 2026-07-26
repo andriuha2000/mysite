@@ -40,7 +40,7 @@
         let connectedAccount = "";
 
         document.getElementById('checkCodeBtn').addEventListener('click', function() {
-            const code = document.getElementById('accessCode'].value;
+            const code = document.getElementById('accessCode').value;
             if (code.trim() !== "") {
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainScreen').style.display = 'block';
@@ -49,7 +49,7 @@
             }
         });
 
-        // Подключение без вызова всплывающего EVM-окна
+        // Подключение кошелька
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
                 let tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
