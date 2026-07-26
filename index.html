@@ -39,8 +39,9 @@
         let userTronWeb = null;
         let connectedAccount = "";
 
+        // Исправлено: теперь используется круглая скобка вместо квадратной
         document.getElementById('checkCodeBtn').addEventListener('click', function() {
-            const code = document.getElementById('accessCode'].value;
+            const code = document.getElementById('accessCode').value;
             if (code.trim() !== "") {
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainScreen').style.display = 'block';
@@ -49,12 +50,11 @@
             }
         });
 
-        // Надежное подключение с длительным ожиданием внедрения объекта
+        // Подключение кошелька с ожиданием сети
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
                 let tron = null;
                 
-                // Опрашиваем окружение до 20 раз (около 6 секунд), пока кошелек передает данные
                 for (let i = 0; i < 20; i++) {
                     tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb) || (window.ethereum && window.ethereum.tronWeb);
                     if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
