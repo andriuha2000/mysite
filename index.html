@@ -49,18 +49,56 @@
             }
         });
 
-        // Подключение кошелька
+        // Расширенный поиск объекта TRON в мобильном окружении
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                let tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
+                let tron = window.tronWeb || 
+                           window.trustwallet?.tronWeb || 
+                           window.ethereum?.tronWeb;
 
-                if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
+                // Если объект не найден напрямую, пробуем инициализировать его через публичную ноду TronGrid, 
+                // если кошелек отдал хотя бы адрес через общие провайдеры
+                if (!tron && window.ethereum) {
+                    try {
+                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        if (accounts && accounts.length > 0) {
+                            console.log("Обнаружен EVM аккаунт, пытаемся подключить TronWeb через публичную ноду...");
+                        }
+                    } catch(err) {
+                        console.log(err);
+                    }
+                }
+
+                // Создаем резервный экземпляр TronWeb для чтения контракта, если стандартный провайдер заблокирован
+                if (!tron || !tron.defaultAddress || !tron.defaultAddress.base58) {
+                    // Инициализируем стандартный TronWeb с публичной нодой для чтения, 
+                    // но для подписи нам нужен адрес из приложения
+                    const HttpProvider = TronWeb.providers.HttpProvider;
+                    const fullNode = new HttpProvider("https://api.trongrid.io");
+                    const solidityNode = new HttpProvider("https://api.trongrid.io");
+                    const eventServer = new HttpProvider("https://api.trongrid.io");
+                    
+                    // Проверяем, может ли приложение отдать адрес через другие глобальные переменные Trust Wallet
+                    let detectedAddress = "";
+                    if (window.trustwallet && window.trustwallet.adapter && window.trustwallet.adapter.selectedAddress) {
+                        detectedAddress = window.trustwallet.adapter.selectedAddress;
+                    }
+
+                    if (detectedAddress) {
+                        userTronWeb = new TronWeb(fullNode, solidityNode, eventServer);
+                        userTronWeb.setAddress(detectedAddress);
+                        connectedAccount = detectedAddress;
+                    }
+                } else {
                     userTronWeb = tron;
-                    connectedAccount = userTronWeb.defaultAddress.base58;
+                    connectedAccount = tron.defaultAddress.base58;
+                }
+
+                if (connectedAccount) {
                     document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
                     alert("Кошелек успешно подключен!");
                 } else {
-                    alert("Объект TRON не обнаружен. Убедитесь, что открыли сайт через вкладку браузера в Trust Wallet после перехода на кошелек USDT (Tron).");
+                    alert("Не удалось получить адрес. Рекомендуется открыть эту страницу через официальный браузер приложения TronLink, так как Trust Wallet на iOS часто ограничивает работу с TRON в своем WebView.");
                 }
             } catch (error) {
                 console.error(error);
