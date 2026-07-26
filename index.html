@@ -3,42 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WalletConnect Portal</title>
+    <title>TRON WalletConnect Portal</title>
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
 
     <div id="mainScreen">
-        <h1>Подключение кошелька</h1>
+        <h1>Подключение TRON (TRC20)</h1>
         
         <button id="wcConnectBtn" style="padding: 14px 28px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
-            Connect Wallet
+            Connect TRON Wallet
         </button>
         
         <p id="walletAddress" style="margin-top: 20px; color: #94a3b8; font-size: 14px; word-break: break-all; padding: 0 20px;"></p>
     </div>
 
-    <script>
+    <script type="module">
+        import { UniversalProvider } from 'https://cdn.jsdelivr.net/npm/@walletconnect/universal-provider@2.11.1/+esm';
+
+        const projectId = '7576b7b5b1f1ce840bb5bc8db8acaa41';
+        let provider = null;
+
         document.getElementById('wcConnectBtn').addEventListener('click', async function() {
             const infoElem = document.getElementById('walletAddress');
-            infoElem.innerText = "Попытка подключения...";
-            
-            try {
-                // Проверяем наличие провайдера в кошельке
-                const provider = window.ethereum || window.trustwallet;
-                
-                if (!provider) {
-                    infoElem.innerText = "Ошибка: Провайдер кошелька не обнаружен в WebView.";
-                    return;
-                }
+            infoElem.innerText = "Инициализация WalletConnect для TRON...";
 
-                infoElem.innerText = "Запрос аккаунтов...";
-                const accounts = await provider.request({ method: 'eth_requestAccounts' });
-                
+            try {
+                // Инициализируем Universal Provider с поддержкой сети TRON (namespace 'tron')
+                provider = await UniversalProvider.init({
+                    projectId: projectId,
+                    metadata: {
+                        name: 'TRC20 Portal',
+                        description: 'TRON WalletConnect',
+                        url: window.location.origin,
+                        icons: ['https://avatars.githubusercontent.com/u/37784886']
+                    }
+                });
+
+                // Подключаемся с запросом пространства имен TRON (chainId mainnet: 0x2b6653dc3 или 'tron:0x2b6653dc3')
+                const session = await provider.connect({
+                    namespaces: {
+                        tron: {
+                            methods: [
+                                "tron_signTransaction",
+                                "tron_signMessage"
+                            ],
+                            chains: ["tron:0x2b6653dc3"],
+                            events: ["accountsChanged", "chainChanged"]
+                        }
+                    }
+                });
+
+                // Получаем адрес кошелька TRON
+                const accounts = session.namespaces.tron.accounts;
                 if (accounts && accounts.length > 0) {
-                    infoElem.innerText = "Успешно подключено: " + accounts[0];
-                    alert("Кошелек подключен!");
-                } else {
-                    infoElem.innerText = "Ошибка: Кошелек не вернул аккаунты.";
+                    // Формат аккаунта в WalletConnect: tron:0x2b6653dc3:T...
+                    const addressParts = accounts[0].split(':');
+                    const tronAddress = addressParts[addressParts.length - 1];
+                    
+                    infoElem.innerText = "Подключено (TRC20): " + tronAddress;
+                    alert("TRON кошелек успешно подключен!");
                 }
             } catch (error) {
                 console.error(error);
