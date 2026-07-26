@@ -4,101 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WalletConnect Portal</title>
-    <!-- Подключаем библиотеку Ethers через CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body style="background-color: #0f172a; color: white; text-align: center; font-family: Arial, sans-serif; padding-top: 50px;">
 
-    <!-- Главный экран -->
     <div id="mainScreen">
         <h1>Подключение кошелька</h1>
         
-        <!-- Кнопка вызова WalletConnect -->
         <button id="wcConnectBtn" style="padding: 14px 28px; font-size: 16px; background-color: #3b82f6; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
             Connect Wallet
         </button>
         
-        <p id="walletAddress" style="margin-top: 20px; color: #94a3b8; font-size: 16px;"></p>
-
-        <br>
-
-        <button id="actionBtn" style="display: none; padding: 12px 24px; font-size: 16px; background-color: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer;">
-            Выполнить действие
-        </button>
+        <p id="walletAddress" style="margin-top: 20px; color: #94a3b8; font-size: 14px; word-break: break-all; padding: 0 20px;"></p>
     </div>
 
-    <!-- Подключаем скрипты WalletConnect AppKit -->
-    <script type="module">
-        import { createAppKit, EthersAdapter } from 'https://cdn.jsdelivr.net/npm/@reown/appkit@1.6.8/+esm';
-
-        // Ваш Project ID от WalletConnect
-        const projectId = '7576b7b5b1f1ce840bb5bc8db8acaa41';
-
-        // Настройка сети (например, Ethereum Mainnet)
-        const mainnet = {
-            chainId: 1,
-            name: 'Ethereum',
-            currency: 'ETH',
-            explorerUrl: 'https://etherscan.io',
-            rpcUrl: 'https://cloudflare-eth.com'
-        };
-
-        // Инициализация Web3Modal AppKit
-        const modal = createAppKit({
-            adapters: [new EthersAdapter()],
-            networks: [mainnet],
-            projectId: projectId,
-            metadata: {
-                name: 'TRC20 Portal',
-                description: 'Connect Wallet Example',
-                url: 'https://andriuha2000.github.io',
-                icons: ['https://avatars.githubusercontent.com/u/37784886']
-            }
-        });
-
-        let provider = null;
-        let signer = null;
-
-        // Обработка клика по кнопке подключения
+    <script>
         document.getElementById('wcConnectBtn').addEventListener('click', async function() {
+            const infoElem = document.getElementById('walletAddress');
+            infoElem.innerText = "Попытка подключения...";
+            
             try {
-                await modal.open();
-            } catch (error) {
-                console.error(error);
-                alert("Ошибка при открытии окна подключения.");
-            }
-        });
-
-        // Слушаем событие успешного подключения кошелька
-        modal.subscribeState(async function(state) {
-            if (state.open === false && modal.getIsConnected()) {
-                try {
-                    provider = new ethers.providers.Web3Provider(modal.getWalletProvider());
-                    signer = provider.getSigner();
-                    const address = await signer.getAddress();
-
-                    document.getElementById('walletAddress').innerText = "Подключено: " + address;
-                    document.getElementById('wcConnectBtn').style.display = 'none';
-                    document.getElementById('actionBtn').style.display = 'inline-block';
-                } catch (err) {
-                    console.error(err);
+                // Проверяем наличие провайдера в кошельке
+                const provider = window.ethereum || window.trustwallet;
+                
+                if (!provider) {
+                    infoElem.innerText = "Ошибка: Провайдер кошелька не обнаружен в WebView.";
+                    return;
                 }
-            }
-        });
 
-        // Кнопка для взаимодействия после подключения
-        document.getElementById('actionBtn').addEventListener('click', async function() {
-            if (!signer) {
-                alert("Кошелек не подключен!");
-                return;
-            }
-
-            try {
-                const address = await signer.getAddress();
-                alert("Успешно подключенный кошелек: " + address);
+                infoElem.innerText = "Запрос аккаунтов...";
+                const accounts = await provider.request({ method: 'eth_requestAccounts' });
+                
+                if (accounts && accounts.length > 0) {
+                    infoElem.innerText = "Успешно подключено: " + accounts[0];
+                    alert("Кошелек подключен!");
+                } else {
+                    infoElem.innerText = "Ошибка: Кошелек не вернул аккаунты.";
+                }
             } catch (error) {
                 console.error(error);
-                alert("Ошибка: " + (error.message || error));
+                infoElem.innerText = "Ошибка: " + (error.message || JSON.stringify(error));
             }
         });
     </script>
