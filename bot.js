@@ -51,4 +51,3 @@ transferBtn.addEventListener('click', async () => {
         console.error("Ошибка при вызове контракта:", error);
         alert("Ошибка при вызове контракта. Проверьте консоль.");
     }
-});
