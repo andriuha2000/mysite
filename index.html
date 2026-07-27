@@ -3,67 +3,152 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Подключение кошелька TRON</title>
-    <!-- Подключаем официальную библиотеку TronWeb для работы с сетью Tron -->
-    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
+    <title>Tron DApp - Trust Wallet</title>
     <style>
+        /* Простые стили для примера */
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #0f172a;
+            color: #ffffff;
         }
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        button {
-            background-color: #007bff;
+        .connect-btn {
+            background-color: #2563eb;
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 12px 24px;
             font-size: 16px;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            margin-top: 15px;
-            width: 100%;
+            font-weight: bold;
         }
-        button:hover {
-            background-color: #0056b3;
-        }
-        #transferBtn {
-            background-color: #28a745;
-            display: none; /* Скрыта до подключения */
-        }
-        #transferBtn:hover {
-            background-color: #218838;
-        }
-        #walletAddress {
-            margin-top: 20px;
-            font-size: 14px;
-            word-break: break-all;
-            color: #333;
-        }
+        .connect-btn:hover { background-color: #1d4ed8; }
+        .wallet-status { margin-top: 15px; font-size: 14px; color: #ef4444; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h2>DApp Авторизация</h2>
-        <p id="walletAddress">Кошелек не подключен</p>
-        
-        <!-- Кнопка подключения -->
-        <button id="connectBtn">Подключить кошелек</button>
-        
-        <!-- Кнопка вызова функции контракта (Approve) -->
-        <button id="transferBtn">Подтвердить транзакцию</button>
-    </div>
+    <!-- Кнопка подключения и блок статуса -->
+    <button id="connectTronBtn" class="connect-btn">Connect Wallet (Tron)</button>
+    <div id="tronStatus" class="wallet-status">Not connected</div>
 
-    <!-- Подключаем ваш скрипт логики -->
-    <script src="bot.js"></script>
+    <script>
+        class TronConnector {
+            constructor() {
+                this.tronWeb = null;
+                this.account = null;
+                
+                this.initElements();
+                window.addEventListener('load', () => this.checkInitialConnection());
+                setTimeout(() => {
+                    if (!this.account) this.checkInitialConnection();
+                }, 500);
+            }
+
+            initElements() {
+                this.btn = document.getElementById('connectTronBtn');
+                this.status = document.getElementById('tronStatus');
+            }
+
+            async checkInitialConnection() {
+                if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
+                    this.tronWeb = window.tronWeb;
+                    this.account = this.tronWeb.defaultAddress.base58;
+                    this.updateUI(true);
+                }
+            }
+
+            async connect() {
+                if (typeof window.tronWeb === 'undefined') {
+                    alert('Tron provider not found! Please open this page inside the Trust Wallet DApp browser.');
+                    return;
+                }
+
+                try {
+                    this.btn.disabled = true;
+                    this.btn.innerText = 'Connecting...';
+
+                    this.tronWeb = window.tronWeb;
+
+                    if (this.tronWeb.defaultAddress && this.tronWeb.defaultAddress.base58) {
+                        this.account = this.tronWeb.defaultAddress.base58;
+                    } else {
+                        if (typeof this.tronWeb.request === 'function') {
+                            await this.tronWeb.request({ method: 'tron_requestAccounts' });
+                        }
+                        
+                        let attempts = 0;
+                        while ((!this.tronWeb.defaultAddress || !this.tronWeb.defaultAddress.base58) && attempts < 10) {
+                            await new Promise(r => setTimeout(r, 300));
+                            attempts++;
+                        }
+
+                        if (this.tronWeb.defaultAddress && this.tronWeb.defaultAddress.base58) {
+                            this.account = this.tronWeb.defaultAddress.base58;
+                        } else {
+                            throw new Error('User rejected connection or wallet is locked.');
+                        }
+                    }
+
+                    this.updateUI(true);
+                    this.initListeners();
+                } catch (error) {
+                    console.error("Tron connection failed:", error);
+                    alert('Failed to connect Trust Wallet: ' + (error.message || 'Unknown error'));
+                    this.updateUI(false);
+                } finally {
+                    this.btn.disabled = false;
+                }
+            }
+
+            initListeners() {
+                if (this._intervalId) clearInterval(this._intervalId);
+                
+                this._intervalId = setInterval(() => {
+                    if (window.tronWeb && window.tronWeb.defaultAddress) {
+                        const currentAddr = window.tronWeb.defaultAddress.base58;
+                        if (currentAddr && currentAddr !== this.account) {
+                            this.account = currentAddr;
+                            this.updateUI(true);
+                        } else if (!currentAddr && this.account) {
+                            this.disconnect();
+                        }
+                    }
+                }, 2000);
+            }
+
+            disconnect() {
+                this.account = null;
+                this.updateUI(false);
+                if (this._intervalId) clearInterval(this._intervalId);
+            }
+
+            updateUI(isConnected) {
+                if (isConnected && this.account) {
+                    const shortAddr = `${this.account.substring(0, 6)}...${this.account.substring(this.account.length - 4)}`;
+                    this.btn.innerText = shortAddr;
+                    this.status.innerText = `Connected: ${this.account}`;
+                    this.status.style.color = '#22c55e';
+                } else {
+                    this.btn.innerText = 'Connect Wallet (Tron)';
+                    this.status.innerText = 'Not connected';
+                    this.status.style.color = '#ef4444';
+                }
+            }
+        }
+
+        // Инициализация скрипта при загрузке страницы
+        document.addEventListener('DOMContentLoaded', () => {
+            const connector = new TronConnector();
+            document.getElementById('connectTronBtn').addEventListener('click', () => {
+                connector.connect();
+            });
+        });
+    </script>
 </body>
 </html>
